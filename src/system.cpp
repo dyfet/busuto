@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 David Sugar <tychosoft@gmail.com>
+
+#include "system.hpp"
+
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+using namespace busuto;
+
+void handle_t::access() noexcept {
+    if (handle_ < 0) {
+        access_ = O_RDWR;
+    } else if (handle_ == 0) {
+        access_ = O_RDONLY;
+    } else if (handle_ < 3) {
+        access_ = O_WRONLY;
+    } else {
+        auto mode = fcntl(handle_, F_GETFL);
+        if (mode > -1)
+            access_ = mode & O_ACCMODE;
+        else
+            access_ = O_RDWR;
+    }
+}
+
+auto handle_t::reset() noexcept -> bool {
+    if (type_ != TERMIO || handle_ < 0) return false;
+    struct termios t{};
+    memcpy(&t, &restore_, sizeof(t));
+    t.c_lflag &= ~(ICANON | ECHO | ISIG);
+    t.c_iflag &= ~(IXON | ICRNL);
+    t.c_oflag &= ~(OPOST);
+    t.c_cc[VMIN] = 1;  // read returns after 1 byte
+    t.c_cc[VTIME] = 0; // no timeout
+    tcsetattr(handle_, TCSANOW, &t);
+    return true;
+}
+
+void handle_t::setup() noexcept {
+    if (handle_ < 0) return;
+    access();
+    auto tty = isatty(handle_);
+    if (tty && (handle_ == 0 || handle_ > 2) && is_readable()) {
+        type_ = TERMIO;
+        tcgetattr(handle_, &restore_);
+        reset();
+    } else if (!tty && handle_ > 2) {
+        struct stat ino{};
+        if (!fstat(handle_, &ino) && S_ISSOCK(ino.st_mode))
+            type_ = SOCKET;
+    } else
+        type_ = GENERIC;
+}
+
+void handle_t::closer() noexcept {
+    if (handle_ > -1) {
+        switch (type_) {
+        case SOCKET:
+            if (access_ == O_RDWR)
+                shutdown(handle_, SHUT_RDWR);
+            else if (access_ == O_RDONLY)
+                shutdown(handle_, SHUT_RD);
+            else if (access_ == O_WRONLY)
+                shutdown(handle_, SHUT_WR);
+            break;
+        case TERMIO:
+            tcsetattr(handle_, TCSANOW, &restore_);
+            break;
+        default:
+            break;
+        }
+        access_ = O_RDWR;
+    }
+    if (handle_ > 2)
+        exit_(handle_);
+    handle_ = -1;
+}

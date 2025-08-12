@@ -15,6 +15,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <termios.h>
 #include <sys/types.h>
 #include <sys/time.h>
 
@@ -78,9 +79,10 @@ public:
 
     handle_t(handle_t&& from) noexcept : handle_(std::exchange(from.handle_, -1)), exit_(from.exit_) {}
 
+    // cppcheck-suppress noExplicitConstructor
+    handle_t(int handle) noexcept : handle_(handle) { setup(); }
     explicit handle_t(close_t fn) noexcept : exit_(fn) {}
-    explicit handle_t(int handle) noexcept : handle_(handle) {}
-    explicit handle_t(int handle, close_t fn) noexcept : handle_(handle), exit_(fn) {}
+    handle_t(int handle, close_t fn) noexcept : handle_(handle), exit_(fn) { access(); }
     ~handle_t() { closer(); }
 
     handle_t(const handle_t&) = delete;
@@ -93,6 +95,10 @@ public:
     auto operator=(int handle) noexcept -> handle_t& {
         closer();
         handle_ = handle;
+        if (type_ != DEFAULT)
+            setup();
+        else
+            access();
         return *this;
     }
 
@@ -104,20 +110,31 @@ public:
         return *this;
     }
 
+    auto is_readable() const noexcept { return handle_ > -1 && ((access_ == O_RDONLY) || (access_ == O_RDWR)); }
+    auto is_writable() const noexcept { return handle_ > -1 && ((access_ == O_WRONLY) || (access_ == O_RDWR)); }
+    // auto is_rdwr() const noexcept { return access_ == O_RDWR; }
     auto is_open() const noexcept { return handle_ > -1; }
     auto get() const noexcept { return handle_; }
     auto release() noexcept { return std::exchange(handle_, -1); }
+    auto clone() const noexcept { return dup(handle_); }
+    auto reset() noexcept -> bool;
 
 private:
     int handle_{-1};
     close_t exit_{[](int fd) { ::close(fd); }};
+    struct termios restore_{};
+    int access_{O_RDWR};
 
-    void closer() noexcept {
-        if (handle_ > -1) {
-            exit_(handle_);
-            handle_ = -1;
-        }
-    }
+    enum {
+        TERMIO,
+        SOCKET,
+        GENERIC,
+        DEFAULT,
+    } type_{DEFAULT};
+
+    void access() noexcept;
+    void setup() noexcept;
+    void closer() noexcept;
 };
 
 inline auto make_handle(const std::string& path, int mode, int perms = 0664) {

@@ -2,7 +2,7 @@
 # Copyright (C) 2025 David Sugar <tychosoft@gmail.com>
 
 cmake_minimum_required(VERSION 3.16.0)
-project(Busuto VERSION 0.0.1 LANGUAGES CXX)
+project(Busuto VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -110,7 +110,7 @@ endif()
 if(MINICRYPT_FOUND)
 add_executable(test_minicrypt test/minicrypt.cpp src/crypto.hpp)
 add_test(NAME test-minicrypt COMMAND test_minicrypt)
-target_link_libraries(test_minicrypt PRIVATE busuto minicrypt)
+target_link_libraries(test_minicrypt PRIVATE busuto ${MINICRYPT_LIBRARIES})
 endif()
 
 # Extras amd install...

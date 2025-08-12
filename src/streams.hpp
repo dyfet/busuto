@@ -11,7 +11,12 @@ namespace busuto::system {
 template <std::size_t S>
 class streambuf : public std::streambuf {
 public:
-    explicit streambuf(int fd, close_t fn = [](int fd) { ::close(fd); }) : handle_(fd, fn) {
+    explicit streambuf(int fd, close_t fn) : handle_(fd, fn) {
+        setg(inbuf_, inbuf_, inbuf_);
+        setp(outbuf_, outbuf_ + S);
+    }
+
+    explicit streambuf(int fd) : handle_(fd) {
         setg(inbuf_, inbuf_, inbuf_);
         setp(outbuf_, outbuf_ + S);
     }
@@ -20,19 +25,76 @@ public:
         this->sync();
     }
 
+    auto handle() noexcept -> handle_t& { return handle_; }
+
+    auto zb_getbody(size_t n) -> std::string_view {
+        while (static_cast<size_t>(this->egptr() - this->gptr()) < n) {
+            if (this->zb_underflow() == traits_type::eof()) {
+                return {}; // Not enough data, fail
+            }
+        }
+
+        auto *start = this->gptr();
+        this->gbump(static_cast<int>(n));
+        return {start, n};
+    }
+
+    auto zb_getview(std::string_view delim = "\r\n") -> std::string_view {
+        auto *start = this->gptr();
+        auto *end = start;
+        while (true) {
+            auto avail = static_cast<size_t>(this->egptr() - end);
+            if (avail < delim.size()) {
+                auto tail = std::min(avail, delim.size() - 1);
+                if (std::string_view(end, tail) == delim.substr(0, tail)) {
+                    if (this->zb_underflow() == traits_type::eof()) return {};
+                    continue;
+                }
+                ++end;
+                continue;
+            }
+
+            if (std::string_view(end, delim.size()) == delim) {
+                this->gbump(static_cast<int>((end - start) + delim.size()));
+                return {start, end - start};
+            }
+            ++end;
+        }
+    }
+
 protected:
+    virtual auto sys_read(void *buf, size_t n) -> ssize_t { return ::read(handle_, buf, n); }
+    virtual auto sys_write(const void *buf, size_t n) -> ssize_t { return ::write(handle_, buf, n); }
+
     auto flush_output() {
-        ssize_t n = pptr() - pbase();
+        auto n = pptr() - pbase();
         if (n > 0) {
-            ssize_t written = write(handle_, pbase(), n);
+            if (!handle_.is_writable()) return false;
+            auto written = this->sys_write(pbase(), n);
             if (written != n) return false;
         }
         setp(outbuf_, outbuf_ + S);
         return true;
     }
 
+    virtual auto zb_underflow() -> int_type {
+        if (!handle_.is_readable()) return traits_type::eof();
+        auto *start = gptr();
+        auto *end = egptr();
+        auto unread = static_cast<size_t>(end - start);
+        if (unread > 0 && start != inbuf_) {
+            std::memmove(inbuf_, start, unread);
+        }
+
+        auto n = this->sys_read(inbuf_ + unread, S - unread);
+        if (n <= 0) return traits_type::eof();
+        setg(inbuf_, inbuf_, inbuf_ + unread + n);
+        return traits_type::to_int_type(*gptr());
+    }
+
     auto underflow() -> int_type override {
-        ssize_t n = read(handle_, inbuf_, S);
+        if (!handle_.is_readable()) return traits_type::eof();
+        ssize_t n = this->sys_read(inbuf_, S);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + n);
         return traits_type::to_int_type(*gptr());
@@ -103,29 +165,17 @@ public:
     system_stream(const system_stream&) = delete;
     auto operator=(const system_stream&) -> system_stream& = delete;
 
-private:
-    system::streambuf<S> buf_;
-};
+    auto is_readable() const noexcept { buf_.is_readable(); }
+    auto is_writable() const noexcept { buf_.is_writable(); }
+    auto getbody(size_t n) -> std::string_view { return buf_.zb_getbody(n); }
+    auto getview(std::string_view delim = "\r\n") -> std::string_view { return buf_.zb_getview(delim); }
 
-template <std::size_t S = 1024>
-class input_stream : public std::istream {
-public:
-    explicit input_stream(int fd = 0, close_t fn = [](int fd) { ::close(fd); }) : buf_(fd, fn), std::istream(&buf_) {}
-
-    input_stream(const input_stream&) = delete;
-    auto operator=(const input_stream&) -> input_stream& = delete;
-
-private:
-    system::streambuf<S> buf_;
-};
-
-template <std::size_t S = 1024>
-class output_stream : public std::ostream {
-public:
-    explicit output_stream(int fd = 1, close_t fn = [](int fd) { ::close(fd); }) : buf_(fd, fn), std::istream(&buf_) {}
-
-    output_stream(const output_stream&) = delete;
-    auto operator=(const output_stream&) -> output_stream& = delete;
+    template <typename F>
+    auto apply(F func)
+    requires requires(F f, handle_t& h) { f(h); }
+    {
+        return func(buf_.handle());
+    }
 
 private:
     system::streambuf<S> buf_;
@@ -134,15 +184,5 @@ private:
 template <std::size_t S = 1024>
 inline auto make_stream(int fd, close_t fn = [](int fd) { ::close(fd); }) {
     return system_stream<S>(fd, fn);
-}
-
-template <std::size_t S = 1024>
-inline auto make_input(int fd = 0, close_t fn = [](int fd) { ::close(fd); }) {
-    return input_stream<S>(fd, fn);
-}
-
-template <std::size_t S = 1024>
-inline auto make_output(int fd = 1, close_t fn = [](int fd) { ::close(fd); }) {
-    return output_stream<S>(fd, fn);
 }
 }; // namespace busuto

@@ -4,7 +4,6 @@
 #undef NDEBUG
 #include "resolver.hpp"
 #include "service.hpp"
-#include "serial.hpp"
 #include "print.hpp"
 #include "args.hpp"
 #include <cassert>
