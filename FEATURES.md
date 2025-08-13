@@ -2,8 +2,8 @@
 
 HiTycho consists of a series of individual C++ 20 header files that typically
 are installed under and included from /usr/include/hitycho for use in HPX
-applications. Some of these are template headers, but all are meant to be used
-directly inline. These currently include:
+applications. Some of these are template headers, and some require linking with
+the busuto library this package builds. These currently include:
 
 ## atomic.hpp
 
@@ -46,14 +46,19 @@ backends may may expose unique capabilities that may apply to a specific
 subclass of applications. This is especially true of the libsodium backend.
 The wolfssl crypto backend seems ideal for more embedded service development.
 
-## finalize.hpp
+## digests.hpp
 
-This offers the ability to finalize scopes thru a compiler optimized template
-function. While scope\_defer is somewhat analogous to finalize in C# and golang
-defer there is also a "scope\_detach" which then executes the finalize in a
-separate HPX thread, thereby not blocking the function return itself. This
-version of defer feels truer to the ``spirit'' of HPX though obviously you will
-want to consider the scope and lifetimes of any captures or arguments used.
+Enanced stream oriented digest support. This makes it possible create and
+compute digests from arbitrary input data by pushing content into a stream
+buffer that computes a running digest using crypto.hpp supported hashing
+algorithms. This provides a very simple and natural C++ api for computing
+digests for arbitrary data of arbitrary size.
+
+## fsys.hpp
+
+This may have local extensions to C++ filesystem.hpp for portable operations
+The most interesting are functional parsing of generic text files and directory
+trees in a manner much like Ruby closures offer.
 
 ## hash.hpp
 
@@ -65,6 +70,13 @@ scattered distributed keys that can be used to dynamically insert and remove
 distributed hosts. This core header is also consistent with my implimentations
 in other languages.
 
+## legacy.hpp
+
+Support for legacy crypto algorithms, many of which are being deprecated and
+removed from modern crypto libraries. Some of these are algoriths still
+actively used on existing devices in the field which may not have upgragable
+firmware.
+
 ## locking.hpp
 
 This offers a small but interesting subset of ModernCLI classes that focus on
@@ -75,13 +87,35 @@ objects.
 
 ## output.hpp
 
-Some output helpers I commonly use as well as simple logging support.
+Some output helpers I commonly use as well providing simple logging support.
 
 ## print.hpp
 
 Performs print formatting, including output to existing streams such as output
 logging. Includes helper functions for other busuto types. Because this header
 has to include other types, it may include a large number of headers.
+
+## process.hpp
+
+Manage and spawn child processes from C++. Manage file sessions with pipes,
+essentially like popen offers.
+
+## resolver.hpp
+
+This provides an asychronous network resolver that uses futures with support
+for reverse address lookup, and a service to manage a list of active
+interfaces. The latter can be used to find the interface and subnet of a socket
+connection or to keep track of interfaces that may go up or down. It is often
+used to find interfaces for joining multicast sessions and binding sockets
+as well.
+
+## safe.hpp
+
+Safe memory operations and confined memory input/output stream buffers that can
+be used to apply C++ stream operations directly on a block of memory. This
+allows memory blocks, such as from UDP messages, to be manipulated in a very
+manner similar to how streams.hpp may be used to parse and produce TCP session
+content with full support for C++ stream operators and formatting.
 
 ## scan.hpp
 
@@ -91,10 +125,23 @@ low level scan functions will eventually be driven from a scan template class
 that has a format string much like format. Other upper level utility functions
 will also be provided.
 
+## services.hpp
+
+Support for writing service applications in C++. This includes a timer system
+as well as support for task oriented tread pools and queue based task event
+dispatch.
+
 ## socket.hpp
 
 Generic basic header to wrap platform portable access to address storage for
 low level BSD sockets api.
+
+## streams.hpp
+
+This offers enhanced, performant full duplex system streaming tied to and
+optimized for socket descriptor based I/O. Among the enhancements over the C++
+streambuf and iostream system is support for high performance zero-copy buffer
+read operations.
 
 ## strings.hpp
 
@@ -102,29 +149,24 @@ Generic string utility functions. Many of these are much easier to use and much 
 
 ## sync.hpp
 
-This introduces scoped guards for common C++17 HPX task synchronization classes
-and adds some special wrapper versions for sempahores. The golang-like
-ModernCLI wait group is also provided for HPX threads. The use cases for golang
+This introduces scoped guards for common C++17 and C++20 thread synchronization
+primitives. I also provide a golang-like wait group. The use cases for golang
 waitgroups and the specific race conditions they help to resolve apply equally
-well to detached HPX threads.
+well to detached C++ threads.
 
 ## system.hpp
 
 Just some convenient C++ wrappers around system handles (file descriptors). It
 may add some process level functionality eventually, too. It is also meant to
-include the hpx init functions and be a basic application main include.
+include the hpx init functions and be a basic application main include. The
+low level handle system is socket and tty aware, making system streams in
+streams.hpp also aware.
 
 ## threads.hpp
 
-Convenent base header for threading support in other headers.
-
-## timer.hpp
-
-This is a timer system that takes advantage of the ability of HPX to spawn off
-thousands of threads cheaply. Rather than using an execute queue of lambdas on
-a single OS timer thread each timer has it's own detached HPX thread instance
-for both one shot and periodic tasks. These are executed as functional
-expressions thru templating so the compiler can also optimize the call site.
+Convenent base header for threading support in other headers. A common thread
+class is used based on std::jthread. As the BSD libraries do not include
+jthread, a built-in substitute is offered for those platforms.
 
 ## linting
 
