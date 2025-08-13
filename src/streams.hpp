@@ -27,6 +27,14 @@ public:
 
     auto handle() noexcept -> handle_t& { return handle_; }
 
+    auto is_reaable() const noexcept {
+        return gptr() < egptr() || handle_.is_readable();
+    }
+
+    auto is_writable() const noexcept {
+        return handle_.is_writable();
+    }
+
     auto zb_getbody(size_t n) -> std::string_view {
         while (static_cast<size_t>(this->egptr() - this->gptr()) < n) {
             if (this->zb_underflow() == traits_type::eof()) {
@@ -165,8 +173,15 @@ public:
     system_stream(const system_stream&) = delete;
     auto operator=(const system_stream&) -> system_stream& = delete;
 
-    auto is_readable() const noexcept { buf_.is_readable(); }
-    auto is_writable() const noexcept { buf_.is_writable(); }
+    auto is_readable() const noexcept {
+        return !static_cast<bool>(!buf_.is_readable() || this->eof());
+    }
+
+    auto is_writable() const noexcept {
+        if (this->fail()) return false;
+        return buf_.is_writable();
+    }
+
     auto getbody(size_t n) -> std::string_view { return buf_.zb_getbody(n); }
     auto getview(std::string_view delim = "\r\n") -> std::string_view { return buf_.zb_getview(delim); }
 
