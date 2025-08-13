@@ -36,15 +36,12 @@ constexpr auto size(const char *cp, std::size_t max = 256) -> std::size_t {
 
 class streambuf final : public std::streambuf {
 public:
-    streambuf() = delete;
-
-    // output
-    streambuf(char *buf, size_t size) {
+    void output(char *buf, size_t size) {
         setg(nullptr, nullptr, nullptr); // empty input
         setp(buf, buf + size);           // allocated output
     }
 
-    streambuf(size_t size, const char *buf) {
+    void input(const char *buf, size_t size) {
         auto chr = const_cast<char *>(buf);
         setg(chr, chr, chr + size); // full input
         setp(nullptr, nullptr);     // empty output
@@ -81,23 +78,31 @@ class input_buffer : public std::istream {
 public:
     input_buffer() = delete;
 
-    input_buffer(const void *mem, std::size_t size) : buf_(size, static_cast<const char *>(mem)) {}
+    input_buffer(const void *mem, std::size_t size) : std::istream(&buf_) {
+        buf_.input(static_cast<const char *>(mem), size);
+    }
 
     template <util::readable_binary Binary>
-    input_buffer(Binary& bin) : buf_(bin.size(), bin.data()) {}
+    explicit input_buffer(Binary& bin) : std::istream(&buf_) {
+        buf_.input(static_cast<const char *>(bin.data()), bin.size());
+    }
 
 private:
-    safe::streambuf buf_;
+    safe::streambuf buf_{};
 };
 
 class output_buffer : public std::ostream {
 public:
     output_buffer() = delete;
 
-    output_buffer(void *mem, std::size_t size) : buf_(static_cast<char *>(mem), size) {}
+    output_buffer(void *mem, std::size_t size) : std::ostream(&buf_) {
+        buf_.output(static_cast<char *>(mem), size);
+    }
 
     template <util::writable_binary Binary>
-    output_buffer(Binary& bin) : buf_(bin.data(), bin.size()) {}
+    explicit output_buffer(Binary& bin) : std::ostream(&buf_) {
+        buf_.output(static_cast<char *>(bin.data()), bin.size());
+    }
 
 private:
     safe::streambuf buf_;
