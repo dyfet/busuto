@@ -74,14 +74,22 @@ protected:
     virtual auto sys_read(void *buf, size_t n) -> ssize_t { return ::read(handle_, buf, n); }
     virtual auto sys_write(const void *buf, size_t n) -> ssize_t { return ::write(handle_, buf, n); }
 
-    auto flush_output() {
-        auto n = pptr() - pbase();
-        if (n > 0) {
-            if (!handle_.is_writable()) return false;
-            auto written = this->sys_write(pbase(), n);
-            if (written != n) return false;
+    auto flush_output() -> bool {
+        auto n = this->pptr() - this->pbase();
+        if (n == 0) return true; // nothing to flush
+        if (!handle_.is_writable()) return false;
+        auto written = this->sys_write(this->pbase(), n);
+        if (written < 0 || written > n) {
+            return false;
         }
-        setp(outbuf_, outbuf_ + S);
+
+        if (written < n) {
+            std::memmove(outbuf_, this->pbase() + written, n - written);
+            this->setp(outbuf_ + (n - written), outbuf_ + S);
+            return false;
+        }
+
+        this->setp(outbuf_, outbuf_ + S);
         return true;
     }
 
@@ -94,6 +102,7 @@ protected:
             std::memmove(inbuf_, start, unread);
         }
 
+        if (!handle_.is_writable()) return traits_type::eof();
         auto n = this->sys_read(inbuf_ + unread, S - unread);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + unread + n);
@@ -101,19 +110,28 @@ protected:
     }
 
     auto underflow() -> int_type override {
+        if (this->gptr() < this->egptr())
+            return traits_type::to_int_type(*this->gptr());
         if (!handle_.is_readable()) return traits_type::eof();
         ssize_t n = this->sys_read(inbuf_, S);
         if (n <= 0) return traits_type::eof();
-        setg(inbuf_, inbuf_, inbuf_ + n);
-        return traits_type::to_int_type(*gptr());
+        this->setg(inbuf_, inbuf_, inbuf_ + n);
+        return traits_type::to_int_type(*this->gptr());
     }
 
     auto overflow(int_type ch) -> int_type override {
+        if (!handle_.is_writable()) return traits_type::eof();
+        if (this->pptr() == this->epptr() || ch == traits_type::eof()) {
+            if (!flush_output()) {
+                return traits_type::eof(); // flush failed
+            }
+        }
+
         if (ch != traits_type::eof()) {
-            *this->pptr() = ch;
+            *this->pptr() = traits_type::to_char_type(ch);
             this->pbump(1);
         }
-        return flush_output() ? ch : traits_type::eof();
+        return traits_type::not_eof(ch);
     }
 
     auto sync() -> int override {

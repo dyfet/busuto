@@ -3,11 +3,14 @@
 
 #pragma once
 
-#include "common.hpp"
+#include "binary.hpp"
 
 #include <cstring>
 #include <cstdlib>
 #include <cstdarg>
+#include <streambuf>
+#include <istream>
+#include <ostream>
 
 namespace busuto::safe {
 constexpr auto eq(const char *p1, const char *p2) {
@@ -31,7 +34,72 @@ constexpr auto size(const char *cp, std::size_t max = 256) -> std::size_t {
     return count;
 }
 
+class streambuf final : public std::streambuf {
+public:
+    streambuf() = delete;
+
+    // output
+    streambuf(char *buf, size_t size) {
+        setg(nullptr, nullptr, nullptr); // empty input
+        setp(buf, buf + size);           // allocated output
+    }
+
+    streambuf(size_t size, const char *buf) {
+        auto chr = const_cast<char *>(buf);
+        setg(chr, chr, chr + size); // full input
+        setp(nullptr, nullptr);     // empty output
+    }
+
+private:
+    auto underflow() -> int_type final {
+        if (gptr() < egptr()) return traits_type::to_int_type(*this->gptr());
+        return traits_type::eof();
+    }
+
+    auto overflow(int_type ch) -> int_type final {
+        if (pptr() == epptr() || ch == traits_type::eof())
+            return traits_type::eof();
+        if (ch != traits_type::eof()) {
+            *pptr() = traits_type::to_char_type(ch);
+            this->pbump(1);
+        }
+        return traits_type::not_eof(ch);
+    }
+
+    auto sync() -> int final {
+        return 0;
+    }
+};
+
 auto memset(void *ptr, int value, size_t size) noexcept -> void *;
 auto copy(char *cp, std::size_t max, std::string_view view) noexcept -> std::size_t;
 auto append(char *cp, std::size_t max, ...) noexcept -> bool;
 } // namespace busuto::safe
+
+namespace busuto {
+class input_buffer : public std::istream {
+public:
+    input_buffer() = delete;
+
+    input_buffer(const void *mem, std::size_t size) : buf_(size, static_cast<const char *>(mem)) {}
+
+    template <util::readable_binary Binary>
+    input_buffer(Binary& bin) : buf_(bin.size(), bin.data()) {}
+
+private:
+    safe::streambuf buf_;
+};
+
+class output_buffer : public std::ostream {
+public:
+    output_buffer() = delete;
+
+    output_buffer(void *mem, std::size_t size) : buf_(static_cast<char *>(mem), size) {}
+
+    template <util::writable_binary Binary>
+    output_buffer(Binary& bin) : buf_(bin.data(), bin.size()) {}
+
+private:
+    safe::streambuf buf_;
+};
+} // namespace busuto
