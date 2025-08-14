@@ -139,6 +139,19 @@ public:
         return head_ == tail_;
     }
 
+    auto size() const noexcept -> std::size_t {
+        const std::lock_guard lock(lock_);
+        if (tail_ >= head_) {
+            return tail_ - head_;
+        } else {
+            return S - (head_ - tail_);
+        }
+    }
+
+    auto capacity() const noexcept -> std::size_t {
+        return S;
+    }
+
     auto operator<<(T&& data) -> pipeline& {
         lock_t lock(lock_);
         for (;;) {
