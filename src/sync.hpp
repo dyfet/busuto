@@ -149,6 +149,14 @@ public:
         return S;
     }
 
+    auto drop() noexcept {
+        const std::lock_guard lock(lock_);
+        if (head_ == tail_) return false;
+        if (++head_ >= S) head_ = 0;
+        input_.notify_one();
+        return true;
+    }
+
     auto operator<<(T&& data) -> pipeline& {
         lock_t lock(lock_);
         for (;;) {
