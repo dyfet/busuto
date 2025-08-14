@@ -15,10 +15,6 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
-find_package(OpenSSL)
-pkg_check_modules(SODIUM libsodium)
-pkg_check_modules(WOLFSSL wolfssl)
-pkg_check_modules(MINICRYPT minicrypt)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(BUILD_DEBUG true)
