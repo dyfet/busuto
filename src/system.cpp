@@ -53,7 +53,7 @@ void handle_t::setup() noexcept {
         type_ = GENERIC;
 }
 
-void handle_t::closer() noexcept {
+void handle_t::cancel() noexcept {
     if (handle_ > -1) {
         switch (type_) {
         case SOCKET:

@@ -173,6 +173,11 @@ public:
             if (head_ != tail_) {
                 head_ = (head_ + 1) % S;
                 out = std::move(data_[head_]);
+                if constexpr (std::is_pointer_v<T>) {
+                    data_[head_] = nullptr;
+                } else {
+                    data_[head_] = T{};
+                }
                 input_.notify_one();
                 return *this;
             }
@@ -183,7 +188,7 @@ public:
 protected:
     mutable std::mutex lock_;
     std::condition_variable input_, output_;
-    T data_[S]; // NOLINT
+    T data_[S]{};
     unsigned head_{0}, tail_{0};
 
     virtual void wait(std::condition_variable& cond, std::unique_lock<std::mutex>& lock) {

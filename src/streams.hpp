@@ -22,7 +22,7 @@ public:
     }
 
     ~streambuf() override {
-        streambuf::sync();
+        final_sync();
     }
 
     auto handle() noexcept -> handle_t& { return handle_; }
@@ -79,22 +79,6 @@ public:
 protected:
     virtual auto sys_read(void *buf, std::size_t n) -> ssize_t { return ::read(handle_, buf, n); }
     virtual auto sys_write(const void *buf, std::size_t n) -> ssize_t { return ::write(handle_, buf, n); }
-
-    virtual auto zb_underflow() -> int_type {
-        if (!handle_.is_readable()) return traits_type::eof();
-        auto *start = gptr();
-        auto *end = egptr();
-        auto unread = static_cast<size_t>(end - start);
-        if (unread > 0 && start != inbuf_) {
-            std::memmove(inbuf_, start, unread);
-        }
-
-        if (!handle_.is_writable()) return traits_type::eof();
-        auto n = sys_read(inbuf_ + unread, S - unread);
-        if (n <= 0) return traits_type::eof();
-        setg(inbuf_, inbuf_, inbuf_ + unread + n);
-        return traits_type::to_int_type(*gptr());
-    }
 
     auto underflow() -> int_type override {
         if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
@@ -170,6 +154,30 @@ protected:
         return total;
     }
 
+    auto zb_underflow() -> int_type {
+        if (!handle_.is_readable()) return traits_type::eof();
+        auto *start = gptr();
+        auto *end = egptr();
+        auto unread = static_cast<size_t>(end - start);
+        if (unread > 0 && start != inbuf_) {
+            std::memmove(inbuf_, start, unread);
+        }
+
+        if (!handle_.is_writable()) return traits_type::eof();
+        auto n = sys_read(inbuf_ + unread, S - unread);
+        if (n <= 0) return traits_type::eof();
+        setg(inbuf_, inbuf_, inbuf_ + unread + n);
+        return traits_type::to_int_type(*gptr());
+    }
+
+    void final_sync() {
+        auto n = pptr() - pbase();
+        if (n <= 0) return;
+        if (!handle_.is_writable()) return;
+        sys_write(pbase(), n);
+        setp(outbuf_, outbuf_ + S);
+    }
+
 private:
     handle_t handle_;
     char inbuf_[S]{};
@@ -195,6 +203,7 @@ public:
         return buf_.is_writable();
     }
 
+    void cancel() { buf_.handle().cancel(); }
     auto getbody(size_t n) { return buf_.zb_getbody(n); }
     auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }
 

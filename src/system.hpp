@@ -68,6 +68,19 @@ inline auto make_file(const std::string& path, const std::string& mode = "r") {
 inline auto make_pipe(const std::string& cmd, const std::string& mode = "r") {
     return system::pipe_ptr(popen(cmd.c_str(), mode.c_str()));
 }
+
+inline auto hostname() noexcept -> std::string {
+    char buf[1024]{0};
+    auto result = gethostname(buf, sizeof(buf));
+
+    if (result != 0) return {};
+    buf[sizeof(buf) - 1] = 0;
+    return {buf};
+}
+
+inline auto prefix(const std::string& dir) noexcept {
+    return chdir(dir.c_str()) == 0;
+}
 } // namespace busuto::system
 
 namespace busuto {
@@ -83,7 +96,7 @@ public:
     handle_t(int handle) noexcept : handle_(handle) { setup(); }
     explicit handle_t(close_t fn) noexcept : exit_(fn) {}
     handle_t(int handle, close_t fn) noexcept : handle_(handle), exit_(fn) { access(); }
-    ~handle_t() { closer(); }
+    ~handle_t() { cancel(); }
 
     handle_t(const handle_t&) = delete;
     auto operator=(const handle_t&) -> handle_t& = delete;
@@ -93,7 +106,7 @@ public:
     auto operator!() const noexcept { return handle_ < 0; }
 
     auto operator=(int handle) noexcept -> handle_t& {
-        closer();
+        cancel();
         handle_ = handle;
         if (type_ != DEFAULT)
             setup();
@@ -104,7 +117,7 @@ public:
 
     auto operator=(handle_t&& other) noexcept -> handle_t& {
         if (this == &other) return *this;
-        closer();
+        cancel();
         handle_ = std::exchange(other.handle_, -1);
         exit_ = other.exit_;
         return *this;
@@ -118,6 +131,7 @@ public:
     auto release() noexcept { return std::exchange(handle_, -1); }
     auto clone() const noexcept { return dup(handle_); }
     auto reset() noexcept -> bool;
+    void cancel() noexcept;
 
 private:
     int handle_{-1};
@@ -134,7 +148,6 @@ private:
 
     void access() noexcept;
     void setup() noexcept;
-    void closer() noexcept;
 };
 
 inline auto make_handle(const std::string& path, int mode, int perms = 0664) {

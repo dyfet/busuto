@@ -21,8 +21,7 @@ is use of a busuto runtime library. This makes it easier to anchor service
 development features such as having a global timer. a global default thread
 pool, and a system logger. It also provides a better place to put large blocks
 of untemplated functions. On posix we also introduce no runtime library code
-that forces injection of additional runtime dependencies. For this reason
-Busuto crypto support is entirely header based.
+that forces injection of additional runtime dependencies.
 
 Another key point of depature with ModernCLI is reduced cross-platform support.
 By focusing exclusively on server application development it was possible to
@@ -41,11 +40,6 @@ All dependencies are really header based to avoid hard runtime linking
 requirements when building and using the Busuto shared libraries. This also
 provents problems with introducing conflicting runtime dependency usages, such
 as wolfssl and openssl.
-
-The crypto headers, and applications using them may require openssl, libressl,
-wolfssl, or libsodium, depending on which specific crypto backend is requested.
-This is made in the end-user's application at build time, and is not imposed
-by Busuto runtime itself.
 
 ## Distributions
 
