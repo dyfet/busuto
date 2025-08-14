@@ -140,7 +140,7 @@ public:
     }
 
     auto operator<<(T&& data) -> pipeline& {
-        std::unique_lock lock(lock_);
+        lock_t lock(lock_);
         for (;;) {
             auto next = (tail_ + 1) % S;
             if (next != head_) {
@@ -149,12 +149,12 @@ public:
                 output_.notify_one();
                 return *this;
             }
-            wait(input_, lock);
+            full(input_, lock);
         }
     }
 
     auto operator<<(const T& data) -> pipeline& {
-        std::unique_lock lock(lock_);
+        lock_t lock(lock_);
         for (;;) {
             auto next = (tail_ + 1) % S;
             if (next != head_) {
@@ -163,7 +163,7 @@ public:
                 output_.notify_one();
                 return *this;
             }
-            wait(input_, lock);
+            full(input_, lock);
         }
     }
 
@@ -186,14 +186,15 @@ public:
     }
 
 protected:
+    using lock_t = std::unique_lock<std::mutex>;
+
     mutable std::mutex lock_;
     std::condition_variable input_, output_;
     T data_[S]{};
     unsigned head_{0}, tail_{0};
 
-    virtual void wait(std::condition_variable& cond, std::unique_lock<std::mutex>& lock) {
-        cond.wait(lock);
-    }
+    virtual void full(lock_t& lock) { input_.wait(lock); }
+    virtual void wait(lock_t& lock) { output_.wait(lock); }
 };
 
 class wait_group final {
