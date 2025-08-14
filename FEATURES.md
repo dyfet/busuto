@@ -5,6 +5,14 @@ are installed under and included from /usr/include/hitycho for use in HPX
 applications. Some of these are template headers, and some require linking with
 the busuto library this package builds. These currently include:
 
+PLEASE NOTE: All crypto related features are being moved into a seperate
+dedicated header-only support library for Busuto, Himitsu. This was to make it
+easier to do a busuto release early while adding TLS support to the crypto
+layer. Since the crypto support is header-only and is based on different
+backends, it also had a rather different architecture than the rest of Busuto.
+Finally, one might choose to adopt different C++ crypto libs for writing
+applications with Busuto.
+
 ## atomic.hpp
 
 Atomic types and lockfree data structures. This includes lockfree stack,
@@ -25,57 +33,11 @@ Some very generic, universal, miscellaneous templates and functions. This also
 is used to introduce new language-like "features", and is included in every
 other header.
 
-## crypto.hpp
-
-This is meant to give access to a subset of commonly used low level crypto
-functions that are often minimally required for server applications. It is not
-meant to offer tls or certificate management, but rather lower level things
-like random number and hash digest generation, and other core features that
-likely are widely needed in service application development.
-
-Busuto crypt sits on top of one of several back-end crypto libraries offering a
-common consistent api for core features that is adapted for use with
-byte_\array. On Apple it likely will become adapted to use CommonCrypto, for
-example, and is meant to serve a similar range of needs. The crypto library is
-configured in source thru crypto.hpp to prevent runtime linking issues, and the
-selection of which backend will be used can be selected at compile time.
-
-The exact range of features offered may depend on the backend being used, and
-while they all overlap on core features with a consistent api, different
-backends may may expose unique capabilities that may apply to a specific
-subclass of applications. This is especially true of the libsodium backend.
-The wolfssl crypto backend seems ideal for more embedded service development.
-
-## digests.hpp
-
-Enanced stream oriented digest support. This makes it possible create and
-compute digests from arbitrary input data by pushing content into a stream
-buffer that computes a running digest using crypto.hpp supported hashing
-algorithms. This provides a very simple and natural C++ api for computing
-digests for arbitrary data of arbitrary size.
-
 ## fsys.hpp
 
 This may have local extensions to C++ filesystem.hpp for portable operations
 The most interesting are functional parsing of generic text files and directory
 trees in a manner much like Ruby closures offer.
-
-## hash.hpp
-
-Thread-safe consistent hash support for cross-platform distributed computing.
-Any simple hash function from any supported crypto.hpp backend may be used,
-though it defaults to sha256 if none is specified. This currently supports 64
-bit big endian consistent hash function and a hash ring buffer for 64 bit
-scattered distributed keys that can be used to dynamically insert and remove
-distributed hosts. This core header is also consistent with my implimentations
-in other languages.
-
-## legacy.hpp
-
-Support for legacy crypto algorithms, many of which are being deprecated and
-removed from modern crypto libraries. Some of these are algoriths still
-actively used on existing devices in the field which may not have upgragable
-firmware.
 
 ## locking.hpp
 

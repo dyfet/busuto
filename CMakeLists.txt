@@ -89,30 +89,6 @@ add_executable(test_strings test/service.cpp src/service.hpp)
 add_test(NAME test-strings COMMAND test_strings)
 target_link_libraries(test_strings PRIVATE busuto)
 
-if(OPENSSL_FOUND)
-add_executable(test_openssl test/openssl.cpp src/crypto.hpp)
-add_test(NAME test-openssl COMMAND test_openssl)
-target_link_libraries(test_openssl PRIVATE busuto OpenSSL::Crypto)
-endif()
-
-if(WOLFSSL_FOUND)
-add_executable(test_wolfssl test/wolfssl.cpp src/crypto.hpp)
-add_test(NAME test-wolfssl COMMAND test_wolfssl)
-target_link_libraries(test_wolfssl PRIVATE busuto ${WOLFSSL_LIBRARIES})
-endif()
-
-if(SODIUM_FOUND)
-add_executable(test_sodium test/sodium.cpp src/crypto.hpp)
-add_test(NAME test-sodium COMMAND test_sodium)
-target_link_libraries(test_sodium PRIVATE busuto ${SODIUM_LIBRARIES})
-endif()
-
-if(MINICRYPT_FOUND)
-add_executable(test_minicrypt test/minicrypt.cpp src/crypto.hpp)
-add_test(NAME test-minicrypt COMMAND test_minicrypt)
-target_link_libraries(test_minicrypt PRIVATE busuto ${MINICRYPT_LIBRARIES})
-endif()
-
 # Extras amd install...
 add_custom_target(header-files SOURCES ${headers} ${extras})
 add_custom_target(support-files SOURCES ${markdown} ${optional})
