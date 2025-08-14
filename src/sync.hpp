@@ -139,26 +139,8 @@ public:
         return head_ == tail_;
     }
 
-    auto size() const noexcept -> std::size_t {
-        const std::lock_guard lock(lock_);
-        if (tail_ >= head_) return tail_ - head_;
-        return S - (head_ - tail_);
-    }
-
-    auto capacity() const noexcept -> std::size_t {
-        return S;
-    }
-
-    auto drop() noexcept {
-        const std::lock_guard lock(lock_);
-        if (head_ == tail_) return false;
-        if (++head_ >= S) head_ = 0;
-        input_.notify_one();
-        return true;
-    }
-
     auto operator<<(T&& data) -> pipeline& {
-        lock_t lock(lock_);
+        std::unique_lock lock(lock_);
         for (;;) {
             auto next = (tail_ + 1) % S;
             if (next != head_) {
@@ -167,12 +149,12 @@ public:
                 output_.notify_one();
                 return *this;
             }
-            full(input_, lock);
+            wait(input_, lock);
         }
     }
 
     auto operator<<(const T& data) -> pipeline& {
-        lock_t lock(lock_);
+        std::unique_lock lock(lock_);
         for (;;) {
             auto next = (tail_ + 1) % S;
             if (next != head_) {
@@ -181,7 +163,7 @@ public:
                 output_.notify_one();
                 return *this;
             }
-            full(input_, lock);
+            wait(input_, lock);
         }
     }
 
@@ -204,15 +186,14 @@ public:
     }
 
 protected:
-    using lock_t = std::unique_lock<std::mutex>;
-
     mutable std::mutex lock_;
     std::condition_variable input_, output_;
     T data_[S]{};
     unsigned head_{0}, tail_{0};
 
-    virtual void full(lock_t& lock) { input_.wait(lock); }
-    virtual void wait(lock_t& lock) { output_.wait(lock); }
+    virtual void wait(std::condition_variable& cond, std::unique_lock<std::mutex>& lock) {
+        cond.wait(lock);
+    }
 };
 
 class wait_group final {
