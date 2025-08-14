@@ -21,10 +21,6 @@ public:
         setp(outbuf_, outbuf_ + S);
     }
 
-    ~streambuf() override {
-        final_sync();
-    }
-
     auto handle() noexcept -> handle_t& { return handle_; }
 
     auto is_reaable() const noexcept {
@@ -168,14 +164,6 @@ protected:
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + unread + n);
         return traits_type::to_int_type(*gptr());
-    }
-
-    void final_sync() {
-        auto n = pptr() - pbase();
-        if (n <= 0) return;
-        if (!handle_.is_writable()) return;
-        sys_write(pbase(), n);
-        setp(outbuf_, outbuf_ + S);
     }
 
 private:
