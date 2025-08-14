@@ -55,24 +55,23 @@ void handle_t::setup() noexcept {
 
 void handle_t::cancel() noexcept {
     if (handle_ > -1) {
+        auto handle = std::exchange(handle_, -1); // prevents race
         switch (type_) {
         case SOCKET:
             if (access_ == O_RDWR)
-                shutdown(handle_, SHUT_RDWR);
+                shutdown(handle, SHUT_RDWR);
             else if (access_ == O_RDONLY)
-                shutdown(handle_, SHUT_RD);
+                shutdown(handle, SHUT_RD);
             else if (access_ == O_WRONLY)
-                shutdown(handle_, SHUT_WR);
+                shutdown(handle, SHUT_WR);
             break;
         case TERMIO:
-            tcsetattr(handle_, TCSANOW, &restore_);
+            tcsetattr(handle, TCSANOW, &restore_);
             break;
         default:
             break;
         }
         access_ = O_RDWR;
+        exit_(handle);
     }
-    if (handle_ > 2)
-        exit_(handle_);
-    handle_ = -1;
 }
