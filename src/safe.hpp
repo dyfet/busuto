@@ -36,12 +36,12 @@ constexpr auto size(const char *cp, std::size_t max = 256) -> std::size_t {
 
 class streambuf final : public std::streambuf {
 public:
-    void output(char *buf, size_t size) {
+    void output(char *buf, std::size_t size) {
         setg(nullptr, nullptr, nullptr); // empty input
         setp(buf, buf + size);           // allocated output
     }
 
-    void input(const char *buf, size_t size) {
+    void input(const char *buf, std::size_t size) {
         auto chr = const_cast<char *>(buf);
         setg(chr, chr, chr + size); // full input
         setp(nullptr, nullptr);     // empty output
@@ -80,17 +80,15 @@ public:
 
 private:
     auto underflow() -> int_type final {
-        if (gptr() < egptr()) return traits_type::to_int_type(*this->gptr());
+        if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
         return traits_type::eof();
     }
 
     auto overflow(int_type ch) -> int_type final {
         if (pptr() == epptr() || ch == traits_type::eof())
             return traits_type::eof();
-        if (ch != traits_type::eof()) {
-            *pptr() = traits_type::to_char_type(ch);
-            this->pbump(1);
-        }
+        *pptr() = traits_type::to_char_type(ch);
+        pbump(1);
         return traits_type::not_eof(ch);
     }
 
@@ -99,7 +97,7 @@ private:
     }
 };
 
-auto memset(void *ptr, int value, size_t size) noexcept -> void *;
+auto memset(void *ptr, int value, std::size_t size) noexcept -> void *;
 auto copy(char *cp, std::size_t max, std::string_view view) noexcept -> std::size_t;
 auto append(char *cp, std::size_t max, ...) noexcept -> bool;
 

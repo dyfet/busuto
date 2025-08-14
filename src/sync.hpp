@@ -128,6 +128,69 @@ private:
     semaphore<Value> *sem_{nullptr};
 };
 
+template <typename T, std::size_t S>
+class pipeline {
+public:
+    explicit operator bool() const noexcept { return !empty(); }
+    auto operator!() const noexcept { return empty(); }
+
+    auto empty() const noexcept {
+        const std::lock_guard lock(lock_);
+        return head_ == tail_;
+    }
+
+    auto operator<<(T&& data) -> pipeline& {
+        std::unique_lock lock(lock_);
+        for (;;) {
+            auto next = (tail_ + 1) % S;
+            if (next != head_) {
+                tail_ = next;
+                data_[tail_] = std::move(data);
+                output_.notify_one();
+                return *this;
+            }
+            wait(input_, lock);
+        }
+    }
+
+    auto operator<<(const T& data) -> pipeline& {
+        std::unique_lock lock(lock_);
+        for (;;) {
+            auto next = (tail_ + 1) % S;
+            if (next != head_) {
+                tail_ = next;
+                data_[tail_] = data;
+                output_.notify_one();
+                return *this;
+            }
+            wait(input_, lock);
+        }
+    }
+
+    auto operator>>(T& out) -> pipeline& {
+        std::unique_lock lock(lock_);
+        for (;;) {
+            if (head_ != tail_) {
+                head_ = (head_ + 1) % S;
+                out = std::move(data_[head_]);
+                input_.notify_one();
+                return *this;
+            }
+            wait(output_, lock);
+        }
+    }
+
+protected:
+    mutable std::mutex lock_;
+    std::condition_variable input_, output_;
+    T data_[S]; // NOLINT
+    unsigned head_{0}, tail_{0};
+
+    virtual void wait(std::condition_variable& cond, std::unique_lock<std::mutex>& lock) {
+        cond.wait(lock);
+    }
+};
+
 class wait_group final {
 public:
     explicit wait_group(unsigned init = 0) noexcept : count_(init) {}

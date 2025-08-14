@@ -150,9 +150,10 @@ Generic string utility functions. Many of these are much easier to use and much 
 ## sync.hpp
 
 This introduces scoped guards for common C++17 and C++20 thread synchronization
-primitives. I also provide a golang-like wait group. The use cases for golang
-waitgroups and the specific race conditions they help to resolve apply equally
-well to detached C++ threads.
+primitives. I also provide a golang-like wait group and a pipeline template
+that is like a very simple go channel. The use cases for golang waitgroups and
+the specific race conditions they help to resolve apply equally well to
+detached C++ threads.
 
 ## system.hpp
 

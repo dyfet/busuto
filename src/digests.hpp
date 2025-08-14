@@ -12,7 +12,7 @@ template <typename C, std::size_t S>
 class streambuf : public std::streambuf {
 public:
     auto data() -> const uint8_t * {
-        this->underflow();
+        underflow();
         return out();
     }
 
@@ -47,28 +47,17 @@ private:
     char out_[S]{};
     char buf_[1024]{};
 
-    auto flush_output() {
-        if (finished_) return false;
-        const ssize_t n = pptr() - pbase();
-        if (n > 0) {
-            if (!this->update(n))
-                return false;
-        }
-        setp(buf_, buf_ + sizeof(buf_));
-        return true;
-    }
-
     auto underflow() -> int_type final {
         if (!finished_) {
-            flush_output();
-            this->finish();
-            this->setg(buf_, buf_, buf_ + S);
+            sync();
+            finish();
+            setg(buf_, buf_, buf_ + S);
             finished_ = true;
         }
 
-        if (this->gptr() >= this->egptr()) return traits_type::eof();
-        auto ch = *this->gptr();
-        this->gbump(1);
+        if (gptr() >= egptr()) return traits_type::eof();
+        auto ch = *gptr();
+        gbump(1);
         return traits_type::to_int_type(ch);
     }
 
@@ -77,7 +66,7 @@ private:
             *pptr() = ch;
             pbump(1);
         }
-        return flush_output() ? ch : traits_type::eof();
+        return sync() == 0 ? ch : traits_type::eof();
     }
 
     auto xsputn(const char_type *s, std::streamsize count) -> std::streamsize final {
@@ -85,7 +74,7 @@ private:
         while (written < count) {
             std::streamsize space = epptr() - pptr();
             if (space == 0) {
-                if (!flush_output()) break;
+                if (sync()) break;
                 space = epptr() - pptr();
             }
 
@@ -98,7 +87,14 @@ private:
     }
 
     auto sync() -> int final {
-        return flush_output() ? 0 : -1;
+        if (finished_) return -1;
+        const ssize_t n = pptr() - pbase();
+        if (n > 0) {
+            if (!update(n))
+                return -1;
+        }
+        setp(buf_, buf_ + sizeof(buf_));
+        return 0;
     }
 };
 

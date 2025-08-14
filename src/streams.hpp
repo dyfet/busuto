@@ -22,7 +22,7 @@ public:
     }
 
     ~streambuf() override {
-        this->sync();
+        streambuf::sync();
     }
 
     auto handle() noexcept -> handle_t& { return handle_; }
@@ -36,39 +36,39 @@ public:
     }
 
     auto zb_getbody(std::size_t n) -> std::string_view {
-        while (static_cast<size_t>(this->egptr() - this->gptr()) < n) {
-            if (this->zb_underflow() == traits_type::eof()) {
+        while (static_cast<size_t>(egptr() - gptr()) < n) {
+            if (zb_underflow() == traits_type::eof()) {
                 return {}; // Not enough data, fail
             }
         }
 
-        auto *start = this->gptr();
-        this->gbump(static_cast<int>(n));
+        auto *start = gptr();
+        gbump(static_cast<int>(n));
         return {start, n};
     }
 
     auto zb_getview(std::string_view delim = "\r\n") -> std::string_view {
         while (true) {
-            auto *start = this->gptr();
+            auto *start = gptr();
             auto *end = start;
             while (true) {
-                auto avail = static_cast<size_t>(this->egptr() - end);
+                auto avail = static_cast<size_t>(egptr() - end);
                 if (avail < delim.size()) {
                     if (avail == 0) {
-                        if (this->zb_underflow() == traits_type::eof()) return {};
+                        if (zb_underflow() == traits_type::eof()) return {};
                         break;
                     }
 
                     auto tail = avail;
                     if (std::string_view(end, tail) == delim.substr(0, tail)) {
-                        if (this->zb_underflow() == traits_type::eof()) return {};
+                        if (zb_underflow() == traits_type::eof()) return {};
                         break;
                     }
                     ++end;
                     continue;
                 }
                 if (std::string_view(end, delim.size()) == delim) {
-                    this->gbump(static_cast<int>((end - start) + delim.size()));
+                    gbump(static_cast<int>((end - start) + delim.size()));
                     return {start, end - start};
                 }
                 ++end;
@@ -77,27 +77,8 @@ public:
     }
 
 protected:
-    virtual auto sys_read(void *buf, size_t n) -> ssize_t { return ::read(handle_, buf, n); }
-    virtual auto sys_write(const void *buf, size_t n) -> ssize_t { return ::write(handle_, buf, n); }
-
-    auto flush_output() -> bool {
-        auto n = this->pptr() - this->pbase();
-        if (n == 0) return true; // nothing to flush
-        if (!handle_.is_writable()) return false;
-        auto written = this->sys_write(this->pbase(), n);
-        if (written < 0 || written > n) {
-            return false;
-        }
-
-        if (written < n) {
-            std::memmove(outbuf_, this->pbase() + written, n - written);
-            this->setp(outbuf_ + (n - written), outbuf_ + S);
-            return false;
-        }
-
-        this->setp(outbuf_, outbuf_ + S);
-        return true;
-    }
+    virtual auto sys_read(void *buf, std::size_t n) -> ssize_t { return ::read(handle_, buf, n); }
+    virtual auto sys_write(const void *buf, std::size_t n) -> ssize_t { return ::write(handle_, buf, n); }
 
     virtual auto zb_underflow() -> int_type {
         if (!handle_.is_readable()) return traits_type::eof();
@@ -109,39 +90,47 @@ protected:
         }
 
         if (!handle_.is_writable()) return traits_type::eof();
-        auto n = this->sys_read(inbuf_ + unread, S - unread);
+        auto n = sys_read(inbuf_ + unread, S - unread);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + unread + n);
         return traits_type::to_int_type(*gptr());
     }
 
     auto underflow() -> int_type override {
-        if (this->gptr() < this->egptr())
-            return traits_type::to_int_type(*this->gptr());
+        if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
         if (!handle_.is_readable()) return traits_type::eof();
-        ssize_t n = this->sys_read(inbuf_, S);
+        ssize_t n = sys_read(inbuf_, S);
         if (n <= 0) return traits_type::eof();
-        this->setg(inbuf_, inbuf_, inbuf_ + n);
-        return traits_type::to_int_type(*this->gptr());
+        setg(inbuf_, inbuf_, inbuf_ + n);
+        return traits_type::to_int_type(*gptr());
     }
 
-    auto overflow(int_type ch) -> int_type override {
-        if (!handle_.is_writable()) return traits_type::eof();
-        if (this->pptr() == this->epptr() || ch == traits_type::eof()) {
-            if (!flush_output()) {
-                return traits_type::eof(); // flush failed
-            }
+    auto overflow(int ch) -> int override {
+        if (ch == traits_type::eof()) {
+            if (sync() == 0) return traits_type::not_eof(ch);
+            return traits_type::eof();
         }
 
-        if (ch != traits_type::eof()) {
-            *this->pptr() = traits_type::to_char_type(ch);
-            this->pbump(1);
-        }
-        return traits_type::not_eof(ch);
+        if (pptr() == epptr() && sync() != 0) return traits_type::eof();
+        *pptr() = traits_type::to_char_type(ch);
+        pbump(1);
+        return ch;
     }
 
     auto sync() -> int override {
-        return flush_output() ? 0 : -1;
+        auto n = pptr() - pbase();
+        if (n == 0) return 0; // nothing to flush
+        if (!handle_.is_writable()) return -1;
+        auto written = sys_write(pbase(), n);
+        if (written < 0 || written > n) return -1;
+        if (written < n) {
+            std::memmove(outbuf_, pbase() + written, n - written);
+            setp(outbuf_ + (n - written), outbuf_ + S);
+            return -1;
+        }
+
+        setp(outbuf_, outbuf_ + S);
+        return 0;
     }
 
     auto xsputn(const char_type *s, std::streamsize count) -> std::streamsize override {
@@ -149,7 +138,7 @@ protected:
         while (written < count) {
             std::streamsize space = epptr() - pptr();
             if (space == 0) {
-                if (!flush_output()) break;
+                if (sync()) break;
                 space = epptr() - pptr();
             }
 
@@ -198,11 +187,11 @@ public:
     auto operator=(const system_stream&) -> system_stream& = delete;
 
     auto is_readable() const noexcept {
-        return !static_cast<bool>(!buf_.is_readable() || this->eof());
+        return !static_cast<bool>(!buf_.is_readable() || eof());
     }
 
     auto is_writable() const noexcept {
-        if (this->fail()) return false;
+        if (fail()) return false;
         return buf_.is_writable();
     }
 

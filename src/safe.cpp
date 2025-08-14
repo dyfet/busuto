@@ -41,7 +41,7 @@ auto safe::append(char *cp, std::size_t max, ...) noexcept -> bool { // NOLINT
     return pos < max;
 }
 
-auto safe::memset(void *ptr, int value, size_t size) noexcept -> void * {
+auto safe::memset(void *ptr, int value, std::size_t size) noexcept -> void * {
     if (!ptr) return nullptr;
     auto p = reinterpret_cast<volatile uint8_t *volatile>(ptr);
     for (size_t i = 0; i < size; ++i) {

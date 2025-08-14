@@ -165,7 +165,7 @@ inline auto make_siphash(const Binary& input, siphash_key key) -> byte_array {
     }
 
     byte_array out(8);
-    size_t actual = 0;
+    std::size_t actual = 0;
     if (EVP_MAC_final(ctx, op, &actual, out.size()) <= 0 || actual != outlen) {
         EVP_MAC_CTX_free(ctx);
         EVP_MAC_free(mac);
