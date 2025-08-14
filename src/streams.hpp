@@ -35,7 +35,7 @@ public:
         return handle_.is_writable();
     }
 
-    auto zb_getbody(size_t n) -> std::string_view {
+    auto zb_getbody(std::size_t n) -> std::string_view {
         while (static_cast<size_t>(this->egptr() - this->gptr()) < n) {
             if (this->zb_underflow() == traits_type::eof()) {
                 return {}; // Not enough data, fail
@@ -48,25 +48,31 @@ public:
     }
 
     auto zb_getview(std::string_view delim = "\r\n") -> std::string_view {
-        auto *start = this->gptr();
-        auto *end = start;
         while (true) {
-            auto avail = static_cast<size_t>(this->egptr() - end);
-            if (avail < delim.size()) {
-                auto tail = std::min(avail, delim.size() - 1);
-                if (std::string_view(end, tail) == delim.substr(0, tail)) {
-                    if (this->zb_underflow() == traits_type::eof()) return {};
+            auto *start = this->gptr();
+            auto *end = start;
+            while (true) {
+                auto avail = static_cast<size_t>(this->egptr() - end);
+                if (avail < delim.size()) {
+                    if (avail == 0) {
+                        if (this->zb_underflow() == traits_type::eof()) return {};
+                        break;
+                    }
+
+                    auto tail = avail;
+                    if (std::string_view(end, tail) == delim.substr(0, tail)) {
+                        if (this->zb_underflow() == traits_type::eof()) return {};
+                        break;
+                    }
+                    ++end;
                     continue;
                 }
+                if (std::string_view(end, delim.size()) == delim) {
+                    this->gbump(static_cast<int>((end - start) + delim.size()));
+                    return {start, end - start};
+                }
                 ++end;
-                continue;
             }
-
-            if (std::string_view(end, delim.size()) == delim) {
-                this->gbump(static_cast<int>((end - start) + delim.size()));
-                return {start, end - start};
-            }
-            ++end;
         }
     }
 
@@ -200,8 +206,8 @@ public:
         return buf_.is_writable();
     }
 
-    auto getbody(size_t n) -> std::string_view { return buf_.zb_getbody(n); }
-    auto getview(std::string_view delim = "\r\n") -> std::string_view { return buf_.zb_getview(delim); }
+    auto getbody(size_t n) { return buf_.zb_getbody(n); }
+    auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }
 
     template <typename F>
     auto apply(F func)
