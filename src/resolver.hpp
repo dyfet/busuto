@@ -149,7 +149,7 @@ public:
         return npos;
     }
 
-private:
+protected:
     struct addrinfo *list_{npos};
 
     void release() noexcept {
@@ -161,7 +161,6 @@ private:
 };
 
 auto lookup(const name_t& name = name_t("*", ""), int family = AF_UNSPEC, int type = SOCK_STREAM, int protocol = 0) -> socket::service;
-
 auto lookup(const addr_t& info, int flags = 0) -> name_t;
 
 inline auto lookup(const address& addr, int flags = 0) -> name_t {
@@ -184,13 +183,6 @@ class resolver_timeout final : public std::runtime_error {
 public:
     resolver_timeout() noexcept : std::runtime_error("resolver timeout") {}
 };
-
-void refresh_networks() noexcept; // may be timed or event driven
-auto bind_address(const std::string& id, uint16_t port = 0, int family = AF_UNSPEC, bool multicast = false) -> socket::address;
-auto bind_multicast(const std::string& id, int family = AF_UNSPEC) -> unsigned;
-auto network_to(const struct sockaddr *addr) -> std::string;
-auto address_to(const struct sockaddr *addr) -> socket::address;
-auto multicast_to(const struct sockaddr *addr) -> unsigned;
 
 inline auto async_resolver(const socket::name_t& name, int family = AF_UNSPEC, int type = SOCK_STREAM, int protocol = 0, int timeout = -1) -> std::future<socket::service> {
     if (timeout < 0)

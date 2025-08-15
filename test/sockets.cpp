@@ -2,6 +2,7 @@
 // Copyright (C) 2025 David Sugar <tychosoft@gmail.com>
 
 #undef NDEBUG
+#include "networks.hpp"
 #include "resolver.hpp"
 #include "service.hpp"
 #include "print.hpp"
@@ -32,11 +33,13 @@ void test_socket_addr() {
 }
 
 void test_socket_bind() {
-    auto b1 = bind_address("*", 0);
+    const networks_t nets;
+    assert(!nets.empty());
+    auto b1 = bind_address(nets, "*");
     assert(!is(b1));
-    b1 = bind_address("[*]", 5060);
+    b1 = bind_address(nets, "[*]", 5060);
     assert(is(b1));
-    b1 = bind_address("127.0.0.1", 5060);
+    b1 = bind_address(nets, "127.0.0.1", 5060);
 #ifndef __FreeBSD__
     assert(std::format("{}", b1) == std::string("127.0.0.1:5060"));
     fsys::path path = "/hello";

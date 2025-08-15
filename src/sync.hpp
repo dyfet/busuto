@@ -147,12 +147,12 @@ public:
 
     auto drop() {
         const guard_t lock(lock_);
-        return drop1();
+        return drop_head();
     }
 
     auto drop_if() { // drop if full
         const guard_t lock(lock_);
-        if (count_ == S) return drop1();
+        if (count_ == S) return drop_head();
         return false;
     }
 
@@ -220,7 +220,7 @@ protected:
         input_.wait(lock, [&] { return count_ < S; });
     }
 
-    auto drop1() {
+    auto drop_head() {
         if (!count_) return false;
         if constexpr (std::is_pointer_v<T>) {
             data_[head_] = nullptr;
@@ -231,6 +231,19 @@ protected:
         count_--;
         input_.notify_one();
         return true;
+    }
+};
+
+template <typename T, std::size_t S>
+class drop_pipeline : public pipeline<T, S> {
+public:
+    drop_pipeline() = default;
+
+private:
+    using lock_t = std::unique_lock<std::mutex>;
+
+    void full([[maybe_unused]] lock_t& lock) final {
+        this->drop_head();
     }
 };
 

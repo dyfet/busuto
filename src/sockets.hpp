@@ -22,7 +22,6 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <poll.h>
-#include <ifaddrs.h>
 
 #ifndef IPV6_ADD_MEMBERSHIP
 #define IPV6_ADD_MEMBERSHIP IP_ADD_MEMBERSHIP
@@ -234,6 +233,7 @@ public:
     void port(uint16_t value);
     void port_if(uint16_t value);
     auto size() const noexcept -> socklen_t { return addrlen(data()); }
+    constexpr auto max() const noexcept -> socklen_t { return sizeof(storage); }
     constexpr auto family() const noexcept -> int { return storage.ss_family; }
 
     auto is_any() const noexcept -> bool {
@@ -287,16 +287,20 @@ inline auto operator>>(std::istream& in, address& addr) -> std::istream& {
     }
     return in;
 }
+} // namespace busuto::socket
+
+namespace busuto {
+using address_t = socket::address;
 
 inline auto make_socket(int family, int type = SOCK_STREAM, int protocol = 0) {
-    return handle_t(::socket(family, type, protocol), &release);
+    return handle_t(::socket(family, type, protocol), &socket::release);
 }
 
 template <std::size_t S = 576>
-inline auto make_stream(int so) {
-    return system_stream(so, &release);
+inline auto tcp_stream(int so) {
+    return system_stream(so, &socket::release);
 }
-} // namespace busuto::socket
+} // namespace busuto
 
 namespace std {
 template <>

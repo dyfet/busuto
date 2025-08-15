@@ -51,6 +51,12 @@ objects.
 
 Some output helpers I commonly use as well providing simple logging support.
 
+## networks.hpp
+
+Animates the network interfaces list into a stl compatible container and
+provides helper functions for finding what network interface an address
+belongs to or to find interfaces for binding to subnets.
+
 ## print.hpp
 
 Performs print formatting, including output to existing streams such as output
@@ -65,11 +71,8 @@ essentially like popen offers.
 ## resolver.hpp
 
 This provides an asychronous network resolver that uses futures with support
-for reverse address lookup, and a service to manage a list of active
-interfaces. The latter can be used to find the interface and subnet of a socket
-connection or to keep track of interfaces that may go up or down. It is often
-used to find interfaces for joining multicast sessions and binding sockets
-as well.
+for reverse address lookup. It also provides a stl compatible container for
+examining network resolver addresses.
 
 ## safe.hpp
 
