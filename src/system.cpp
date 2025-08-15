@@ -41,7 +41,7 @@ void handle_t::setup() noexcept {
     if (handle_ < 0) return;
     access();
     auto tty = isatty(handle_);
-    if (tty && (handle_ == 0 || handle_ > 2) && is_readable()) {
+    if (tty && (handle_ == 0 || handle_ > 2) && readable()) {
         type_ = TERMIO;
         tcgetattr(handle_, &restore_);
         reset();

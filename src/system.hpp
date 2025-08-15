@@ -123,9 +123,8 @@ public:
         return *this;
     }
 
-    auto is_readable() const noexcept { return handle_ > -1 && ((access_ == O_RDONLY) || (access_ == O_RDWR)); }
-    auto is_writable() const noexcept { return handle_ > -1 && ((access_ == O_WRONLY) || (access_ == O_RDWR)); }
-    // auto is_rdwr() const noexcept { return access_ == O_RDWR; }
+    auto readable() const noexcept { return handle_ > -1 && ((access_ == O_RDONLY) || (access_ == O_RDWR)); }
+    auto writable() const noexcept { return handle_ > -1 && ((access_ == O_WRONLY) || (access_ == O_RDWR)); }
     auto is_open() const noexcept { return handle_ > -1; }
     auto get() const noexcept { return handle_; }
     auto release() noexcept { return std::exchange(handle_, -1); }

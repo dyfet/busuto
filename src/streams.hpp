@@ -23,12 +23,12 @@ public:
 
     auto handle() noexcept -> handle_t& { return handle_; }
 
-    auto is_reaable() const noexcept {
-        return gptr() < egptr() || handle_.is_readable();
+    auto reaable() const noexcept {
+        return gptr() < egptr() || handle_.readable();
     }
 
-    auto is_writable() const noexcept {
-        return handle_.is_writable();
+    auto writable() const noexcept {
+        return handle_.writable();
     }
 
     auto zb_getbody(std::size_t n) -> std::string_view {
@@ -78,7 +78,7 @@ protected:
 
     auto underflow() -> int_type override {
         if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
-        if (!handle_.is_readable()) return traits_type::eof();
+        if (!handle_.readable()) return traits_type::eof();
         ssize_t n = sys_read(inbuf_, S);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + n);
@@ -100,7 +100,7 @@ protected:
     auto sync() -> int override {
         auto n = pptr() - pbase();
         if (n == 0) return 0; // nothing to flush
-        if (!handle_.is_writable()) return -1;
+        if (!handle_.writable()) return -1;
         auto written = sys_write(pbase(), n);
         if (written < 0 || written > n) return -1;
         if (written < n) {
@@ -151,7 +151,7 @@ protected:
     }
 
     auto zb_underflow() -> int_type {
-        if (!handle_.is_readable()) return traits_type::eof();
+        if (!handle_.readable()) return traits_type::eof();
         auto *start = gptr();
         auto *end = egptr();
         auto unread = static_cast<size_t>(end - start);
@@ -159,7 +159,7 @@ protected:
             std::memmove(inbuf_, start, unread);
         }
 
-        if (!handle_.is_writable()) return traits_type::eof();
+        if (!handle_.writable()) return traits_type::eof();
         auto n = sys_read(inbuf_ + unread, S - unread);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + unread + n);
@@ -182,13 +182,13 @@ public:
     system_stream(const system_stream&) = delete;
     auto operator=(const system_stream&) -> system_stream& = delete;
 
-    auto is_readable() const noexcept {
-        return !static_cast<bool>(!buf_.is_readable() || eof());
+    auto readable() const noexcept {
+        return !static_cast<bool>(!buf_.readable() || eof());
     }
 
-    auto is_writable() const noexcept {
+    auto writable() const noexcept {
         if (fail()) return false;
-        return buf_.is_writable();
+        return buf_.writable();
     }
 
     void cancel() { buf_.handle().cancel(); }

@@ -103,6 +103,34 @@ inline auto in6_cast(T *addr) noexcept {
     }
 }
 
+constexpr auto addrlen(const struct sockaddr *addr) -> socklen_t {
+    switch (addr->sa_family) {
+    case AF_INET:
+        return sizeof(sockaddr_in);
+        break;
+    case AF_INET6:
+        return sizeof(sockaddr_in6);
+        break;
+    case AF_UNIX:
+        return sizeof(sockaddr_un);
+        break;
+    default:
+        return std::size_t(0);
+        break;
+    }
+}
+
+constexpr auto port(const struct sockaddr *sa) -> uint16_t {
+    switch (sa->sa_family) {
+    case AF_INET:
+        return ntohs(in4_cast(sa)->sin_port);
+    case AF_INET6:
+        return ntohs(in6_cast(sa)->sin6_port);
+    default:
+        return 0;
+    }
+}
+
 inline auto to_storage(struct sockaddr *addr) noexcept {
     return reinterpret_cast<struct sockaddr_storage *>(addr);
 }
@@ -131,6 +159,12 @@ inline auto un_cast(T *addr) noexcept {
 }
 #endif
 
+void release(int so) noexcept;
+auto join(int so, const struct sockaddr *member, unsigned ifindex = 0) noexcept -> int;
+auto drop(int so, const struct sockaddr *member, unsigned ifindex = 0) noexcept -> int;
+auto to_string(const struct sockaddr *sa) -> std::string;
+auto is_any(const struct sockaddr *sa) -> bool;
+
 class address {
 public:
     constexpr address() noexcept = default;
@@ -140,9 +174,7 @@ public:
     }
 
     // cppcheck-suppress noExplicitConstructor
-    address(const struct sockaddr *from) noexcept {
-        assign(from);
-    }
+    address(const struct sockaddr *from) noexcept { assign(from); }
 
     explicit address(const struct addrinfo *from) noexcept {
         if (from && from->ai_addr && from->ai_addrlen)
@@ -157,21 +189,11 @@ public:
         return to_sockaddr(&storage);
     }
 
-    explicit operator bool() const noexcept {
-        return is_valid();
-    }
-
-    auto operator!() const noexcept {
-        return !is_valid();
-    }
-
-    auto operator*() const noexcept {
-        return to_sockaddr(&storage);
-    }
-
-    auto operator*() noexcept {
-        return to_sockaddr(&storage);
-    }
+    explicit operator bool() const noexcept { return valid(); }
+    operator std::string() const { return to_string(); }
+    auto operator!() const noexcept { return !valid(); }
+    auto operator*() const noexcept { return to_sockaddr(&storage); }
+    auto operator*() noexcept { return to_sockaddr(&storage); }
 
     auto operator=(const struct sockaddr *from) noexcept -> address& {
         assign(from);
@@ -190,50 +212,10 @@ public:
         return *this;
     }
 
-    constexpr auto is_valid() const noexcept -> bool {
+    constexpr auto valid() const noexcept -> bool {
         if (family() == AF_UNSPEC) return false;
         if (((family() == AF_INET) || (family() == AF_INET6)) && !port()) return false;
         return true;
-    }
-
-    auto is_any() const noexcept {
-        auto sa = to_sockaddr(&storage);
-        switch (sa->sa_family) {
-        case AF_UNSPEC:
-            return true;
-        case AF_INET:
-            return zero(&(in4_cast(sa))->sin_addr.s_addr, 4);
-        case AF_INET6:
-            return zero(&(in6_cast(sa))->sin6_addr.s6_addr, 16);
-        default:
-            return false;
-        }
-    }
-
-    void assign(const struct sockaddr *from) noexcept {
-        if (!from) {
-            memset(&storage, 0, sizeof(storage));
-            return;
-        }
-        socklen_t len = 0;
-        switch (from->sa_family) {
-        case AF_INET:
-            len = sizeof(sockaddr_in);
-            break;
-        case AF_INET6:
-            len = sizeof(sockaddr_in6);
-            break;
-        case AF_UNIX:
-            len = sizeof(sockaddr_un);
-            break;
-        default:
-            len = std::size_t(0);
-            break;
-        }
-
-        if (len && len <= sizeof(storage)) {
-            std::memcpy(&storage, from, len);
-        }
     }
 
     auto c_sockaddr() const noexcept {
@@ -248,66 +230,28 @@ public:
         return reinterpret_cast<struct sockaddr *>(&storage);
     }
 
-    constexpr auto size() const noexcept -> socklen_t {
-        switch (storage.ss_family) {
-        case AF_INET:
-            return sizeof(sockaddr_in);
-            break;
-        case AF_INET6:
-            return sizeof(sockaddr_in6);
-            break;
-        case AF_UNIX:
-            return sizeof(sockaddr_un);
-            break;
-        default:
-            return std::size_t(0);
-            break;
-        }
+    void assign(const struct sockaddr *from) noexcept;
+    void port(uint16_t value);
+    void port_if(uint16_t value);
+    auto size() const noexcept -> socklen_t { return addrlen(data()); }
+    constexpr auto family() const noexcept -> int { return storage.ss_family; }
+
+    auto is_any() const noexcept -> bool {
+        return socket::is_any(to_sockaddr(&storage));
     }
 
-    constexpr auto family() const noexcept -> int {
-        return storage.ss_family;
+    auto to_string() const noexcept -> std::string {
+        return socket::to_string(to_sockaddr(&storage));
+    }
+
+    auto port() const noexcept -> uint16_t {
+        return socket::port(to_sockaddr(&storage));
     }
 
     void family_if(int changed) noexcept {
         if (family() == AF_UNSPEC)
             storage.ss_family = changed;
     }
-
-    auto port() const noexcept -> uint16_t {
-        auto sa = to_sockaddr(&storage);
-        switch (storage.ss_family) {
-        case AF_INET:
-            return ntohs(in4_cast(sa)->sin_port);
-        case AF_INET6:
-            return ntohs(in6_cast(sa)->sin6_port);
-        default:
-            return 0;
-        }
-    }
-
-    void port_if(uint16_t value) {
-        if (!port())
-            port(value);
-    }
-
-    void port(uint16_t value) {
-        auto sa = to_sockaddr(&storage);
-        switch (storage.ss_family) {
-        case AF_INET:
-            (in4_cast(sa))->sin_port = htons(value);
-            return;
-        case AF_INET6:
-            (in6_cast(sa))->sin6_port = htons(value);
-            return;
-        default:
-            throw error("unknown address type");
-        }
-    }
-
-    auto to_string() const -> std::string;
-
-    operator std::string() const { return to_string(); }
 
     auto operator==(const address& other) const noexcept {
         auto len = size();
@@ -321,49 +265,10 @@ public:
         return memcmp(&storage, &other.storage, len) != 0;
     }
 
-    static auto from_string(const std::string& s, uint16_t port = 0) {
-        address a;
-        auto a4 = in4_cast(*a);
-        auto a6 = in6_cast(*a);
-        if (s == "*") {
-            a.storage.ss_family = AF_INET;
-            a.port(port);
-            return a;
-        }
-
-        if (s == "[*]") {
-            a.storage.ss_family = AF_INET6;
-            a.port(port);
-            return a;
-        }
-
-        if (s.find(':') != std::string::npos) {
-            if (inet_pton(AF_INET6, s.c_str(), &a6->sin6_addr) == 1) {
-                a6->sin6_family = AF_INET6;
-                a6->sin6_port = htons(port);
-                return a;
-            }
-        } else {
-            if (inet_pton(AF_INET, s.c_str(), &a4->sin_addr) == 1) {
-                a4->sin_family = AF_INET;
-                a4->sin_port = htons(port);
-                return a;
-            }
-        }
-        throw error("invalid address format: " + s);
-    }
+    static auto from_string(const std::string& s, uint16_t port = 0) -> address;
 
 protected:
     struct sockaddr_storage storage{};
-
-    constexpr static auto zero(const void *addr, std::size_t size) -> bool {
-        auto ptr = static_cast<const std::byte *>(addr);
-        while (size--) {
-            if (*ptr != std::byte(0)) return false;
-            ++ptr;
-        }
-        return true;
-    }
 };
 
 inline auto operator<<(std::ostream& out, const address& addr) -> std::ostream& {
@@ -371,9 +276,17 @@ inline auto operator<<(std::ostream& out, const address& addr) -> std::ostream& 
     return out;
 }
 
-void release(int so) noexcept;
-auto join(int so, const struct sockaddr *member, unsigned ifindex = 0) noexcept -> int;
-auto drop(int so, const struct sockaddr *member, unsigned ifindex = 0) noexcept -> int;
+inline auto operator>>(std::istream& in, address& addr) -> std::istream& {
+    std::string token;
+    if (in >> token) {
+        try {
+            addr = address::from_string(token);
+        } catch (...) {
+            in.setstate(std::ios::failbit);
+        }
+    }
+    return in;
+}
 
 inline auto make_socket(int family, int type = SOCK_STREAM, int protocol = 0) {
     return handle_t(::socket(family, type, protocol), &release);

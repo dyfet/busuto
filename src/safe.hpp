@@ -47,11 +47,11 @@ public:
         setp(nullptr, nullptr);     // empty output
     }
 
-    auto is_readable() const noexcept {
+    auto readable() const noexcept {
         return gptr() < egptr();
     }
 
-    auto is_writable() const noexcept {
+    auto writable() const noexcept {
         return pptr() != epptr();
     }
 
@@ -102,8 +102,8 @@ auto copy(char *cp, std::size_t max, std::string_view view) noexcept -> std::siz
 auto append(char *cp, std::size_t max, ...) noexcept -> bool;
 
 template <typename T>
-inline void zero(T *ptr, std::size_t size) noexcept {
-    safe::memset(ptr, 0, size);
+inline void zero(T *ptr) noexcept {
+    safe::memset(ptr, 0, sizeof(T));
 }
 
 template <typename T>
@@ -137,7 +137,7 @@ public:
         buf_.input(static_cast<const char *>(mem), size);
     }
 
-    auto is_ready() const noexcept { return buf_.is_readable(); }
+    auto is_open() const noexcept { return buf_.readable(); }
     auto getbody(size_t n) { return buf_.zb_getbody(n); }
     auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }
 
@@ -158,7 +158,7 @@ public:
         buf_.output(static_cast<char *>(mem), size);
     }
 
-    auto is_ready() const noexcept { return buf_.is_writable(); }
+    auto is_open() const noexcept { return buf_.writable(); }
 
     template <util::writable_binary Binary>
     explicit output_buffer(Binary& bin) : std::ostream(&buf_) {
