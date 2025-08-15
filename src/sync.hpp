@@ -133,66 +133,104 @@ class pipeline {
 public:
     explicit operator bool() const noexcept { return !empty(); }
     auto operator!() const noexcept { return empty(); }
+    auto capacity() const noexcept { return S; }
 
     auto empty() const noexcept {
-        const std::lock_guard lock(lock_);
-        return head_ == tail_;
+        const guard_t lock(lock_);
+        return count_ == 0;
+    }
+
+    auto count() const noexcept {
+        const guard_t lock(lock_);
+        return count_;
+    }
+
+    auto drop() {
+        const guard_t lock(lock_);
+        return drop1();
+    }
+
+    auto drop_if() { // drop if full
+        const guard_t lock(lock_);
+        if (count_ == S) return drop1();
+        return false;
     }
 
     auto operator<<(T&& data) -> pipeline& {
-        std::unique_lock lock(lock_);
+        lock_t lock(lock_);
         for (;;) {
-            auto next = (tail_ + 1) % S;
-            if (next != head_) {
-                tail_ = next;
+            if (count_ < S) {
                 data_[tail_] = std::move(data);
+                tail_ = (tail_ + 1) % S;
+                count_++;
                 output_.notify_one();
                 return *this;
             }
-            wait(input_, lock);
+            full(lock);
         }
     }
 
     auto operator<<(const T& data) -> pipeline& {
-        std::unique_lock lock(lock_);
+        lock_t lock(lock_);
         for (;;) {
-            auto next = (tail_ + 1) % S;
-            if (next != head_) {
-                tail_ = next;
+            if (count_ < S) {
                 data_[tail_] = data;
+                tail_ = (tail_ + 1) % S;
+                count_++;
                 output_.notify_one();
                 return *this;
             }
-            wait(input_, lock);
+            full(lock);
         }
     }
 
     auto operator>>(T& out) -> pipeline& {
-        std::unique_lock lock(lock_);
+        lock_t lock(lock_);
         for (;;) {
-            if (head_ != tail_) {
-                head_ = (head_ + 1) % S;
+            if (count_ > 0) {
                 out = std::move(data_[head_]);
                 if constexpr (std::is_pointer_v<T>) {
                     data_[head_] = nullptr;
                 } else {
                     data_[head_] = T{};
                 }
+                head_ = (head_ + 1) % S;
+                count_--;
                 input_.notify_one();
                 return *this;
             }
-            wait(output_, lock);
+            wait(lock);
         }
     }
 
 protected:
+    using lock_t = std::unique_lock<std::mutex>;
+    using guard_t = std::lock_guard<std::mutex>;
+
     mutable std::mutex lock_;
     std::condition_variable input_, output_;
     T data_[S]{};
-    unsigned head_{0}, tail_{0};
+    unsigned head_{0}, tail_{0}, count_{0};
 
-    virtual void wait(std::condition_variable& cond, std::unique_lock<std::mutex>& lock) {
-        cond.wait(lock);
+    virtual void wait(lock_t& lock) {
+        output_.wait(lock, [&] { return count_ > 0; });
+    }
+
+    virtual void full(lock_t& lock) {
+        input_.wait(lock, [&] { return count_ < S; });
+    }
+
+    auto drop1() {
+        if (!count_) return false;
+        if constexpr (std::is_pointer_v<T>) {
+            data_[head_] = nullptr;
+        } else {
+            data_[head_] = T{};
+        }
+        head_ = (head_ + 1) % S;
+        count_--;
+        input_.notify_one();
+        return true;
     }
 };
 
