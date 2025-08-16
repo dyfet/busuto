@@ -3,6 +3,7 @@
 
 #undef NDEBUG
 #include "sync.hpp"
+#include "pipeline.hpp"
 #include "atomic.hpp"
 #include <cassert>
 

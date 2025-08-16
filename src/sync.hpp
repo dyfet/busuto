@@ -7,10 +7,8 @@
 
 #include <semaphore>
 #include <barrier>
-#include "print.hpp"
 
 namespace busuto::sync {
-using timepoint = std::chrono::steady_clock::time_point;
 using duration = std::chrono::milliseconds;
 
 template <std::ptrdiff_t Value>
@@ -75,11 +73,11 @@ public:
         bin_->release();
     }
 
-    auto wait_for(duration const& rel_time) {
+    auto wait_for(const duration& rel_time) {
         return bin_->try_acquire_for(rel_time);
     }
 
-    auto wait_until(timepoint const& abs_time) {
+    auto wait_until(const timepoint_t& abs_time) {
         return bin_->try_acquire_until(abs_time);
     }
 
@@ -126,125 +124,6 @@ private:
     }
 
     semaphore<Value> *sem_{nullptr};
-};
-
-template <typename T, std::size_t S>
-class pipeline {
-public:
-    explicit operator bool() const noexcept { return !empty(); }
-    auto operator!() const noexcept { return empty(); }
-    auto capacity() const noexcept { return S; }
-
-    auto empty() const noexcept {
-        const guard_t lock(lock_);
-        return count_ == 0;
-    }
-
-    auto count() const noexcept {
-        const guard_t lock(lock_);
-        return count_;
-    }
-
-    auto drop() {
-        const guard_t lock(lock_);
-        return drop_head();
-    }
-
-    auto drop_if() { // drop if full
-        const guard_t lock(lock_);
-        if (count_ == S) return drop_head();
-        return false;
-    }
-
-    auto operator<<(T&& data) -> pipeline& {
-        lock_t lock(lock_);
-        for (;;) {
-            if (count_ < S) {
-                data_[tail_] = std::move(data);
-                tail_ = (tail_ + 1) % S;
-                count_++;
-                output_.notify_one();
-                return *this;
-            }
-            full(lock);
-        }
-    }
-
-    auto operator<<(const T& data) -> pipeline& {
-        lock_t lock(lock_);
-        for (;;) {
-            if (count_ < S) {
-                data_[tail_] = data;
-                tail_ = (tail_ + 1) % S;
-                count_++;
-                output_.notify_one();
-                return *this;
-            }
-            full(lock);
-        }
-    }
-
-    auto operator>>(T& out) -> pipeline& {
-        lock_t lock(lock_);
-        for (;;) {
-            if (count_ > 0) {
-                out = std::move(data_[head_]);
-                if constexpr (std::is_pointer_v<T>) {
-                    data_[head_] = nullptr;
-                } else {
-                    data_[head_] = T{};
-                }
-                head_ = (head_ + 1) % S;
-                count_--;
-                input_.notify_one();
-                return *this;
-            }
-            wait(lock);
-        }
-    }
-
-protected:
-    using lock_t = std::unique_lock<std::mutex>;
-    using guard_t = std::lock_guard<std::mutex>;
-
-    mutable std::mutex lock_;
-    std::condition_variable input_, output_;
-    T data_[S]{};
-    unsigned head_{0}, tail_{0}, count_{0};
-
-    virtual void wait(lock_t& lock) {
-        output_.wait(lock, [&] { return count_ > 0; });
-    }
-
-    virtual void full(lock_t& lock) {
-        input_.wait(lock, [&] { return count_ < S; });
-    }
-
-    auto drop_head() {
-        if (!count_) return false;
-        if constexpr (std::is_pointer_v<T>) {
-            data_[head_] = nullptr;
-        } else {
-            data_[head_] = T{};
-        }
-        head_ = (head_ + 1) % S;
-        count_--;
-        input_.notify_one();
-        return true;
-    }
-};
-
-template <typename T, std::size_t S>
-class drop_pipeline : public pipeline<T, S> {
-public:
-    drop_pipeline() = default;
-
-private:
-    using lock_t = std::unique_lock<std::mutex>;
-
-    void full([[maybe_unused]] lock_t& lock) final {
-        this->drop_head();
-    }
 };
 
 class wait_group final {

@@ -115,6 +115,6 @@ using networks_t = socket::networks;
 
 auto bind_address(const networks_t& nets, const std::string& id, uint16_t port = 0, int family = AF_UNSPEC, bool multicast = false) -> address_t;
 
-auto multicast_if(const networks_t& nets, const std::string& id, int family = AF_UNSPEC) -> unsigned;
+auto multicast_index(const networks_t& nets, const std::string& id, int family = AF_UNSPEC) -> unsigned;
 
 } // namespace busuto

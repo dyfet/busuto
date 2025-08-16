@@ -75,7 +75,7 @@ auto busuto::bind_address(const networks_t& nets, const std::string& id, uint16_
     return any;
 }
 
-auto busuto::multicast_if(const networks_t& nets, const std::string& id, int family) -> unsigned {
+auto busuto::multicast_index(const networks_t& nets, const std::string& id, int family) -> unsigned {
     if (id == "*" && (family == AF_INET || family == AF_UNSPEC)) return ~0U;
     auto ifa = nets.find(id, family, true);
     if (ifa && ifa->ifa_addr) {

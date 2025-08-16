@@ -51,6 +51,14 @@ objects.
 
 Some output helpers I commonly use as well providing simple logging support.
 
+## pipeline.hpp
+
+This is used to move objects between producer and consumer threads much like go
+channels might work. Pipeline is optimized to use move semantics when possible
+and to clear objects from the pipeline when they are removed. The pipeline is
+constructed in a sized template so that it can be in static or stack space
+without any heap allocations.
+
 ## networks.hpp
 
 Animates the network interfaces list into a stl compatible container and
@@ -106,7 +114,8 @@ low level BSD sockets api.
 This offers enhanced, performant full duplex system streaming tied to and
 optimized for socket descriptor based I/O. Among the enhancements over the C++
 streambuf and iostream system is support for high performance zero-copy buffer
-read operations.
+read operations. Stream buffering is done with sized templates so that they
+can appear in stack space without heap allocations.
 
 ## strings.hpp
 
@@ -115,10 +124,9 @@ Generic string utility functions. Many of these are much easier to use and much 
 ## sync.hpp
 
 This introduces scoped guards for common C++17 and C++20 thread synchronization
-primitives. I also provide a golang-like wait group and a pipeline template
-that is like a very simple go channel. The use cases for golang waitgroups and
-the specific race conditions they help to resolve apply equally well to
-detached C++ threads.
+primitives. I also provide a golang-like wait group. The use cases for golang
+waitgroups and the specific race conditions they help to resolve apply equally
+well to detached C++ threads.
 
 ## system.hpp
 

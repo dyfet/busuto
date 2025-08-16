@@ -34,6 +34,8 @@ struct pipe_closer {
 } // namespace busuto::util
 
 namespace busuto::system {
+using timepoint = std::chrono::steady_clock::time_point;
+using duration = std::chrono::steady_clock::duration;
 using file_ptr = std::unique_ptr<FILE, util::file_closer>;
 using pipe_ptr = std::unique_ptr<FILE, util::pipe_closer>;
 
@@ -47,6 +49,36 @@ inline void time_of_day(struct timeval *tp) noexcept {
 
 inline auto steady_time() noexcept {
     return std::chrono::steady_clock::now();
+}
+
+inline auto is_expired(const timepoint& deadline) {
+    auto now = steady_time();
+    return deadline > now;
+}
+
+inline auto put_timeval(struct timeval *tv, const timepoint& deadline) {
+    using namespace std::chrono;
+    if (tv == nullptr) return false;
+    tv->tv_sec = tv->tv_usec = 0;
+
+    auto now = steady_clock::now();
+    if (deadline < now) return false; // expired
+
+    auto delta = deadline - now;
+    auto secs = duration_cast<seconds>(delta);
+    auto usecs = duration_cast<microseconds>(delta - secs);
+
+    tv->tv_sec = static_cast<time_t>(secs.count());
+    tv->tv_usec = static_cast<suseconds_t>(usecs.count());
+    return true;
+}
+
+inline auto get_timeout(const timepoint& deadline) -> int {
+    using namespace std::chrono;
+    auto now = steady_clock::now();
+    auto delta = deadline > now ? deadline - now : steady_clock::duration::zero();
+    auto ms = duration_cast<milliseconds>(delta).count();
+    return ms > std::numeric_limits<int>::max() ? std::numeric_limits<int>::max() : static_cast<int>(ms);
 }
 
 inline auto local_time(const std::time_t& time) noexcept {
@@ -85,6 +117,8 @@ inline auto prefix(const std::string& dir) noexcept {
 
 namespace busuto {
 using close_t = void (*)(int);
+using timepoint_t = system::timepoint;
+using duration_t = system::duration;
 
 class handle_t final {
 public:
