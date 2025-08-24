@@ -51,6 +51,8 @@ public:
         return data_[index - Offset];
     }
 
+    constexpr auto begin() const -> T * { return data_; }
+    constexpr auto end() const -> T * { return data_ + N; }
     constexpr auto min() const noexcept { return Offset; }
     constexpr auto max() const noexcept { return size_type(Offset + N - 1); }
 
@@ -63,12 +65,25 @@ public:
     void output(char *buf, std::size_t size) {
         setg(nullptr, nullptr, nullptr); // empty input
         setp(buf, buf + size);           // allocated output
+        data_ = buf;
+        size_ = 0;
     }
 
     void input(const char *buf, std::size_t size) {
         auto chr = const_cast<char *>(buf);
         setg(chr, chr, chr + size); // full input
         setp(nullptr, nullptr);     // empty output
+        data_ = buf;
+        size_ = size;
+    }
+
+    auto data() const noexcept {
+        return data_;
+    }
+
+    auto size() const noexcept {
+        if (size_) return size_;
+        return static_cast<std::size_t>(pptr() - data_);
     }
 
     auto readable() const noexcept {
@@ -103,6 +118,9 @@ public:
     }
 
 private:
+    const char *data_{nullptr};
+    std::size_t size_{0};
+
     auto underflow() -> int_type final {
         if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
         return traits_type::eof();
@@ -135,6 +153,7 @@ auto strcopy(char *cp, std::size_t max, const char *dp) noexcept -> std::size_t;
 auto strcat(char *cp, std::size_t max, ...) noexcept -> std::size_t;
 void strupper(char *cp, std::size_t max);
 void strlower(char *cp, std::size_t max);
+auto getline(std::istream& from, char *data, std::size_t size, char delim = '\n') -> std::size_t;
 
 template <typename T>
 inline void zero(T *ptr) noexcept {
@@ -192,6 +211,7 @@ public:
         data_[size_] = 0;
     }
 
+    auto operator-=(std::size_t size) -> stringbuf& { return trim(size); }
     operator char *() const noexcept { return data(); }
     operator std::string() const noexcept { return std::string(data_); }
     explicit operator std::string_view() const noexcept { return std::string_view(data_, size); }
@@ -205,8 +225,16 @@ public:
     }
 
     template <safe::CharBuffer T>
-    auto operator+=(const T& from) noexcept -> stringbuf& {
+    auto operator+=(const T& from) -> stringbuf& {
+        if (size_ == S) throw range("stringbuf full");
         size_ += safe::strcat(data_ + size_, S - size_, from.data());
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto operator+=(char ch) -> stringbuf& {
+        if (size_ == S) throw range("stringbuf full");
+        data_[size_++] = ch;
         data_[size_] = 0;
         return *this;
     }
@@ -218,18 +246,42 @@ public:
         return *this;
     }
 
-    auto operator+=(const char *cp) noexcept -> stringbuf& {
+    auto operator+=(const char *cp) -> stringbuf& {
+        if (size_ == S) throw range("stringbuf full");
         size_ += safe::strcat(data_ + size_, S - size_ + 1, cp);
         data_[size_] = 0;
         return *this;
     }
 
-    auto operator[](size_t index) -> char& {
+    template <safe::CharBuffer T>
+    auto operator==(const T& from) const noexcept -> bool {
+        if (from.size() != size_) return false;
+        if (!size_) return true;
+        return memcmp(data_, from.data(), size_);
+    }
+
+    template <safe::CharBuffer T>
+    auto operator!=(const T& from) const noexcept -> bool {
+        return !operator==(from);
+    }
+
+    auto operator==(const char *cp) const noexcept -> bool {
+        size_t len = safe::strsize(cp, S);
+        if (len != size_) return false;
+        if (!len) return true;
+        return memcmp(data_, cp, size_) == 0;
+    }
+
+    auto operator!=(const char *cp) const noexcept -> bool {
+        return !operator==(cp);
+    }
+
+    constexpr auto operator[](size_t index) -> char& {
         if (index >= size_) throw range("index out of bounds");
         return data_[index];
     }
 
-    auto operator[](size_t index) const -> const char& {
+    constexpr auto operator[](size_t index) const -> const char& {
         if (index >= size_) throw range("index out of bounds");
         return data_[index];
     }
@@ -244,13 +296,72 @@ public:
         return *this;
     }
 
-    auto data() noexcept -> char * { return data_; }
-    auto data() const noexcept -> char * { return data_; }
-    auto size() const noexcept { return size_; }
-    auto capacity() const noexcept { return S; }
+    auto getline(std::istream& from, char delim = '\n') -> stringbuf& {
+        size_ = safe::getline(from, data_, S + 1, delim);
+        return *this;
+    }
+
+    constexpr auto first() const {
+        if (!size_) throw range("stringbuf empty");
+        return data_[0];
+    }
+
+    constexpr auto last() const {
+        if (!size_) throw range("stringbuf empty");
+        return data_[size_ - 1];
+    }
+
+    constexpr auto begin() const -> char * { return data_; }
+    constexpr auto end() const -> char * { return data_ + size_; }
+    constexpr auto data() noexcept -> char * { return data_; }
+    constexpr auto data() const noexcept -> char * { return data_; }
+    constexpr auto size() const noexcept { return size_; }
+    constexpr auto capacity() const noexcept { return S; }
+    constexpr auto empty() const noexcept { return !size_; }
+    constexpr auto full() const noexcept { return size_ >= S; }
+
     void clear() noexcept {
         size_ = 0;
         data_[0] = 0;
+    }
+
+    auto trim(std::size_t size) -> std::stringbuf& {
+        if (size > size_) throw range("trim too large");
+        size_ -= size;
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto start_with(const char *list) const noexcept -> char * {
+        if (!list) return data_;
+        std::size_t pos{0};
+        while (pos < size_) {
+            if (strchar(list, data_[pos]))
+                return data_ + pos;
+            ++pos;
+        }
+        return data_ + size_;
+    }
+
+    auto start_after(const char *list) const noexcept -> char * {
+        if (!list) return data_;
+        std::size_t pos{0};
+        while (pos < size_) {
+            if (!strchar(list, data_[pos]))
+                return data_ + pos;
+            ++pos;
+        }
+        return data_ + size_; // null byte at end, valid ptr
+    }
+
+    auto trim(const char *str) noexcept {
+        if (!str) return false;
+        auto tsize = safe::strsize(str, S);
+        if (tsize > size_) return false;
+        if (memcmp(data_ + size_ - tsize, str, tsize) != 0) return false;
+        size_ -= tsize;
+        data_[size_] = 0;
+        return true;
     }
 
     template <typename Func>
@@ -284,6 +395,11 @@ public:
         buf_.input(static_cast<const char *>(bin.data()), bin.size());
     }
 
+    auto data() const noexcept { return buf_.data(); }
+    auto size() const noexcept { return buf_.size(); }
+    auto begin() const noexcept { return data(); }
+    auto end() const noexcept { return data() + size(); }
+
 private:
     safe::streambuf buf_{};
 };
@@ -302,6 +418,11 @@ public:
     explicit output_buffer(Binary& bin) : std::ostream(&buf_) {
         buf_.output(static_cast<char *>(bin.data()), bin.size());
     }
+
+    auto data() const noexcept { return buf_.data(); }
+    auto size() const noexcept { return buf_.size(); }
+    auto begin() const noexcept { return data(); }
+    auto end() const noexcept { return data() + size(); }
 
 private:
     safe::streambuf buf_;

@@ -96,9 +96,12 @@ session content with full support for C++ stream operators and formatting.
 Safe slots is meant to ba a pure slot object for (lockable) data structures in
 memory. It is not meant to be used as a value store like std::array. Offset
 indexing allows the index to be a "meaningful" value rather than a 0 offset
-index. This lets code use an index of 0 to indicate an invalid index. There
-are no stl methods because you would simply iterate thru all slots and would
-never use "data value" type algorithms on it.
+index. This lets code use an index of 0 to indicate an invalid index.
+
+Safe alsoprovides memory safe C char ptr operations. There is also a fixed
+sized (templated) stringbuf class that lets you create a string type that is
+very friendly to integration with C strings. A new memory safe version of
+getline is provided to read lines into a stringbuf or a fixed char array.
 
 ## scan.hpp
 

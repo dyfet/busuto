@@ -67,3 +67,18 @@ void safe::strlower(char *cp, std::size_t max) {
         ++cp;
     }
 }
+
+auto safe::getline(std::istream& from, char *data, std::size_t size, char delim) -> std::size_t {
+    if (!data || size < 2) return 0;
+    std::size_t count{0};
+    char ch{0};
+    --size; // for null byte at end
+    while (count < size && from.get(ch) && ch != delim) {
+        data[count++] = ch;
+    }
+    if (from.eof() && !count) {
+        from.setstate(std::ios_base::failbit);
+    }
+    data[count] = 0;
+    return count;
+}
