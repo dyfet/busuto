@@ -54,11 +54,14 @@ void busuto::handle_t::setup() noexcept {
         tcgetattr(handle_, &restore_);
 #endif
         reset();
+#ifdef S_ISSOCK
     } else if (!tty && handle_ > 2) {
         struct stat ino{};
-#ifdef S_ISSOCK
-        if (!fstat(handle_, &ino) && S_ISSOCK(ino.st_mode))
-            type_ = SOCKET;
+        if (!fstat(handle_, &ino)) {
+            // cppcheck-suppress syntaxError
+            if (S_ISSOCK(ino.st_mode))
+                type_ = SOCKET;
+        }
 #endif
     } else
         type_ = GENERIC;
@@ -69,7 +72,7 @@ void busuto::handle_t::close() noexcept {
         auto handle = std::exchange(handle_, -1); // prevents race
         switch (type_) {
         case SOCKET:
-#ifdef  _WIN32
+#ifdef _WIN32
             shutdown(handle_, SD_BOTH);
             closesocket(handle_);
             access_ = O_RDWR;

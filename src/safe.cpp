@@ -3,12 +3,13 @@
 
 #include "safe.hpp"
 
+#include <cctype>
+
 using namespace busuto;
 
-auto safe::copy(char *cp, std::size_t max, std::string_view view) noexcept -> std::size_t {
-    if (!cp) return std::size_t(0);
-    auto count = view.size();
-    auto dp = view.data();
+auto safe::strcopy(char *cp, std::size_t max, const char *dp) noexcept -> std::size_t {
+    if (!cp || !dp) return std::size_t(0);
+    auto count = safe::strsize(dp, max);
     if (count >= max)
         count = max - 1;
 
@@ -20,25 +21,26 @@ auto safe::copy(char *cp, std::size_t max, std::string_view view) noexcept -> st
     return count;
 }
 
-auto safe::append(char *cp, std::size_t max, ...) noexcept -> bool { // NOLINT
+auto safe::strcat(char *cp, std::size_t max, ...) noexcept -> std::size_t { // uNOLINT
     va_list list{};
-    auto pos = safe::size(cp, max);
+    auto pos = safe::strsize(cp, max);
+    std::size_t count{0};
     va_start(list, max);
     for (;;) {
         auto sp = va_arg(list, const char *); // NOLINT
         if (!sp) break;
         if (pos >= max) continue;
-        auto chars = safe::size(sp);
+        auto chars = safe::strsize(sp);
         if (chars + pos >= max) {
             pos = max;
             continue;
         }
 
-        safe::copy(cp + pos, max - pos, sp);
+        count += safe::strcopy(cp + pos, max - pos, sp);
         pos += chars;
     }
     va_end(list);
-    return pos < max;
+    return count;
 }
 
 auto safe::memset(void *ptr, int value, std::size_t size) noexcept -> void * {
@@ -48,4 +50,20 @@ auto safe::memset(void *ptr, int value, std::size_t size) noexcept -> void * {
         p[i] = static_cast<uint8_t>(value);
     }
     return ptr;
+}
+
+void safe::strupper(char *cp, std::size_t max) {
+    auto count = safe::strsize(cp, max);
+    while (count--) {
+        *cp = static_cast<char>(toupper(*cp));
+        ++cp;
+    }
+}
+
+void safe::strlower(char *cp, std::size_t max) {
+    auto count = safe::strsize(cp, max);
+    while (count--) {
+        *cp = static_cast<char>(tolower(*cp));
+        ++cp;
+    }
 }

@@ -14,26 +14,11 @@
 #include <array>
 
 namespace busuto::safe {
-constexpr auto eq(const char *p1, const char *p2) {
-    if (!p1 && !p2) return true;
-    if (!p1 || !p2) return false;
-    return strcmp(p1, p2) == 0;
-}
-
-constexpr auto eq(const char *p1, const char *p2, std::size_t len) {
-    if (!p1 && !p2) return true;
-    if (!p1 || !p2) return false;
-    return strncmp(p1, p2, len) == 0;
-}
-
-constexpr auto size(const char *cp, std::size_t max = 256) -> std::size_t {
-    std::size_t count = 0;
-    while (cp && *cp && count < max) {
-        ++count;
-        ++cp;
-    }
-    return count;
-}
+template <typename T>
+concept CharBuffer = requires(const T& t) {
+    { t.data() } -> std::convertible_to<const char *>;
+    { t.size() } -> std::convertible_to<std::size_t>;
+};
 
 template <typename T, std::size_t N, std::size_t Offset = 0>
 class slots {
@@ -136,9 +121,20 @@ private:
     }
 };
 
+constexpr auto strsize(const char *cp, std::size_t max = 256) -> std::size_t {
+    std::size_t count = 0;
+    while (cp && *cp && count < max) {
+        ++count;
+        ++cp;
+    }
+    return count;
+}
+
 auto memset(void *ptr, int value, std::size_t size) noexcept -> void *;
-auto copy(char *cp, std::size_t max, std::string_view view) noexcept -> std::size_t;
-auto append(char *cp, std::size_t max, ...) noexcept -> bool;
+auto strcopy(char *cp, std::size_t max, const char *dp) noexcept -> std::size_t;
+auto strcat(char *cp, std::size_t max, ...) noexcept -> std::size_t;
+void strupper(char *cp, std::size_t max);
+void strlower(char *cp, std::size_t max);
 
 template <typename T>
 inline void zero(T *ptr) noexcept {
@@ -168,6 +164,109 @@ inline void newarray(T **ptr, std::size_t count = 1) noexcept {
 } // namespace busuto::safe
 
 namespace busuto {
+template <std::size_t S>
+class stringbuf {
+public:
+    stringbuf() = default;
+    ~stringbuf() { safe::memset(data_, 0, S); }
+
+    template <safe::CharBuffer T>
+    explicit stringbuf(const T& from) noexcept : size_(S) {
+        if (from.size() < S) size_ = from.size();
+        size_ = safe::strcopy(data_, size_ + 1, from.data());
+        data_[size_] = 0;
+    }
+
+    explicit stringbuf(char ch, std::size_t s = S) noexcept : size_(s) {
+        if (ch == 0) {
+            size_ = 0;
+            return;
+        }
+        safe::memset(data_, ch, size_);
+        data_[size_] = 0;
+    }
+
+    explicit stringbuf(const char *cp) noexcept {
+        size_ = std::min(S, safe::strsize(cp, S));
+        size_ = std::min(S, safe::strcopy(data_, size_ + 1, cp));
+        data_[size_] = 0;
+    }
+
+    operator char *() const noexcept { return data(); }
+    operator std::string() const noexcept { return std::string(data_); }
+    explicit operator std::string_view() const noexcept { return std::string_view(data_, size); }
+
+    template <safe::CharBuffer T>
+    auto operator=(const T& from) noexcept -> stringbuf& {
+        size_ = std::min(S, from.size());
+        size_ = safe::strcopy(data_, size_, from.data());
+        data_[size_] = 0;
+        return *this;
+    }
+
+    template <safe::CharBuffer T>
+    auto operator+=(const T& from) noexcept -> stringbuf& {
+        size_ += safe::strcat(data_ + size_, S - size_, from.data());
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto operator=(const char *cp) noexcept -> stringbuf& {
+        size_ = std::min(S, safe::strsize(cp, S));
+        size_ = std::min(S, safe::strcopy(data_, size_ + 1, cp));
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto operator+=(const char *cp) noexcept -> stringbuf& {
+        size_ += safe::strcat(data_ + size_, S - size_ + 1, cp);
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto operator[](size_t index) -> char& {
+        if (index >= size_) throw range("index out of bounds");
+        return data_[index];
+    }
+
+    auto operator[](size_t index) const -> const char& {
+        if (index >= size_) throw range("index out of bounds");
+        return data_[index];
+    }
+
+    auto upper() noexcept -> stringbuf& {
+        safe::strupper(data_, size_);
+        return *this;
+    }
+
+    auto lower() noexcept -> stringbuf& {
+        safe::strlower(data_, size_);
+        return *this;
+    }
+
+    auto data() noexcept -> char * { return data_; }
+    auto data() const noexcept -> char * { return data_; }
+    auto size() const noexcept { return size_; }
+    auto capacity() const noexcept { return S; }
+    void clear() noexcept {
+        size_ = 0;
+        data_[0] = 0;
+    }
+
+    template <typename Func>
+    requires requires(Func f, char *d, std::size_t s) {{ f(d, s) }; }
+    auto apply(Func func) {
+        auto result = func(data_, S);
+        size_ = safe::strsize(data_, S);
+        data_[size_] = 0;
+        return result;
+    }
+
+private:
+    std::size_t size_{0};
+    char data_[S + 1]{0};
+};
+
 class input_buffer : public std::istream {
 public:
     input_buffer() = delete;
@@ -207,4 +306,16 @@ public:
 private:
     safe::streambuf buf_;
 };
+
+constexpr auto eq(const char *p1, const char *p2) {
+    if (!p1 && !p2) return true;
+    if (!p1 || !p2) return false;
+    return strcmp(p1, p2) == 0;
+}
+
+constexpr auto eq(const char *p1, const char *p2, std::size_t len) {
+    if (!p1 && !p2) return true;
+    if (!p1 || !p2) return false;
+    return strncmp(p1, p2, len) == 0;
+}
 } // namespace busuto
