@@ -22,6 +22,8 @@ public:
     }
 
     auto handle() noexcept -> handle_t& { return handle_; }
+    auto zb_data() const noexcept { return gptr(); }
+    auto zb_size() const noexcept { return static_cast<std::size_t>(egptr() - gptr()); }
 
     auto reaable() const noexcept {
         return gptr() < egptr() || handle_.readable();
@@ -70,6 +72,26 @@ public:
                 ++end;
             }
         }
+    }
+
+    // This is useful to re-frame input data when streaming packets
+    auto zb_reset(std::size_t consume = 0) -> bool {
+        auto *start = gptr();
+        auto *end = egptr();
+        if (start + consume <= end)
+            start += consume;
+        else
+            return false;
+
+        auto unread = static_cast<size_t>(end - start);
+        if (unread && start > inbuf_)
+            std::memmove(inbuf_, start, unread);
+        setg(inbuf_, inbuf_, inbuf_ + unread);
+        if (unread >= S) return true;
+        auto n = sys_read(inbuf_ + unread, S - unread);
+        if (n <= 0) return unread > 0;
+        setg(inbuf_, inbuf_, inbuf_ + unread + n);
+        return true;
     }
 
 protected:
@@ -159,7 +181,6 @@ protected:
             std::memmove(inbuf_, start, unread);
         }
 
-        if (!handle_.writable()) return traits_type::eof();
         auto n = sys_read(inbuf_ + unread, S - unread);
         if (n <= 0) return traits_type::eof();
         setg(inbuf_, inbuf_, inbuf_ + unread + n);
@@ -191,6 +212,11 @@ public:
         return buf_.writable();
     }
 
+    auto data() const noexcept { return buf_.zb_data(); }
+    auto size() const noexcept { return buf_.zb_size(); }
+    auto begin() const { return buf_.zb_data(); }
+    auto end() const { return buf_.zb_data() + buf_.zb_size(); }
+    auto reset(std::size_t size = 0) { return buf_.zb_reset(size); }
     void close() { buf_.handle().close(); }
     auto getbody(size_t n) { return buf_.zb_getbody(n); }
     auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }

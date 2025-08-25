@@ -36,6 +36,33 @@ concept readable_binary = requires(const T obj) {
     { obj.size() } -> std::convertible_to<std::size_t>;
 };
 
+// Himitsu C++17 style code compatible traits...
+template <typename, typename = void>
+struct is_writable_binary : std::false_type {};
+
+template <typename T>
+struct is_writable_binary<T, std::void_t<
+                             decltype(std::declval<T>().data()),
+                             decltype(std::declval<T>().size())>> : std::integral_constant<bool,
+                                                                    std::is_convertible_v<decltype(std::declval<T>().data()), void *> &&
+                                                                    std::is_convertible_v<decltype(std::declval<T>().size()), std::size_t>> {};
+
+template <typename T>
+constexpr bool is_writable_binary_v = is_writable_binary<T>::value;
+
+template <typename, typename = void>
+struct is_readable_binary : std::false_type {};
+
+template <typename T>
+struct is_readable_binary<T, std::void_t<
+                             decltype(std::declval<const T>().data()),
+                             decltype(std::declval<const T>().size())>> : std::integral_constant<bool,
+                                                                          std::is_convertible_v<decltype(std::declval<const T>().data()), const void *> &&
+                                                                          std::is_convertible_v<decltype(std::declval<const T>().size()), std::size_t>> {};
+
+template <typename T>
+constexpr bool is_readable_binary_v = is_readable_binary<T>::value;
+
 auto is_utf8(const std::byte *data, std::size_t len) -> bool;
 auto is_utf8(const std::span<const std::byte>& data) -> bool;
 auto is_utf8(const std::string_view& view) -> bool;

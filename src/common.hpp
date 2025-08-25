@@ -14,6 +14,10 @@
 #error C++20 compliant compiler (or later) required
 #endif
 
+#ifndef BUSUTO_RUNTIME_SYSTEM
+#define BUSUTO_RUNTIME_SYSTEM 1
+#endif
+
 namespace busuto {
 using error = std::runtime_error;
 using range = std::out_of_range;
