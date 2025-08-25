@@ -30,31 +30,23 @@ Busuto itself depends only on C++20 and a C++20 updated libc++.
 ## Distributions
 
 Distributions of this package are provided as detached source tarballs made
-from a tagged release from our public gitlab repository or by building the dist
+from a tagged release from our public github repository or by building the dist
 target. These stand-alone detached tarballs can be used to make packages for
 many GNU/Linux systems, and for BSD ports. They may also be used to build and
 install the software directly on a target platform.
-
-The latest public release source tarball can be produced by an auto-generated
-tarball from a tagged release in the projects public git repository at
-https://gitlab.com/tychosoft/busuto. Busuto can also be easily vendored
-in other software using git modules from this public repo. I also package
-Busuto for Alpine Linux. There is no reason this cannot easily be packaged
-for use on other distributions where HPX is supported.
 
 ## Licensing
 
 Busuto Copyright (C) 2025 David Sugar <tychosoft@gmail.comSug>,
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 NOTE: As primarily a header based library where functional code residing in
 headers that are either directly called or instantiated and called by user
@@ -66,12 +58,10 @@ commercial licensing under different terms.
 ## Participation
 
 This project is offered as free (as in freedom) software for public use and has
-a public project page at https://www.gitlab.com/tychosoft/busuto which has
-an issue tracker where you can submit public bug reports and a public git
-repository. Patches and merge requests may be submitted in the issue tracker
-or thru email. Support requests and other kinds of inquiries may also be sent
-thru the tychosoft gitlab help desktop service. Other details about
-participation may be found in CONTRIBUTING.md.
+a public project page at https://www.github.com/dyfet/busuto which has an issue
+tracker where you can submit public bug reports and a public git repository.
+Patches and merge requests may be submitted in the issue tracker or thru email.
+Other details about participation may be found in CONTRIBUTING.md.
 
 ## Testing
 
