@@ -83,8 +83,9 @@ public:
     ~notify_t() { release(); }
 
     auto is_open() const noexcept { return pipe_[0] != -1; }
+    auto handle() const noexcept { return pipe_[0]; }
 
-    auto elear() noexcept {
+    auto clear() noexcept {
         if (pipe_[0] == -1) return false;
 #ifdef EFD_NONBLOCK
         uint64_t count{0};

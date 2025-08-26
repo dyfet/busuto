@@ -66,7 +66,8 @@ without any heap allocations.
 
 When pipelines are made for pointers, pipeline assumes the objects in the
 pipeline are made from "new". If objects have to be dropped, they may be
-deleted.
+deleted. The notify\_pipeline subclass behaves more like a true golang channel
+in that you can have a poll or select wait on an event notification handle.
 
 ## print.hpp
 

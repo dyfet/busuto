@@ -65,8 +65,10 @@ public:
             if (count_ < S) {
                 data_[tail_] = std::move(data);
                 tail_ = (tail_ + 1) % S;
-                if (count_++ == 0) // notify no longer empty
+                if (count_++ == 0) { // notify no longer empty
                     output_.notify_one();
+                    this->notify(true);
+                }
                 return true;
             }
             full(lock);
@@ -80,8 +82,10 @@ public:
             if (count_ < S) {
                 data_[tail_] = data;
                 tail_ = (tail_ + 1) % S;
-                if (count_++ == 0) // notify no longer empty
+                if (count_++ == 0) { // notify no longer empty
                     output_.notify_one();
+                    this->notify(true);
+                }
                 return true;
             }
             full(lock);
@@ -96,8 +100,10 @@ public:
                 out = std::move(data_[head_]);
                 clear_item(data_[head_], false); // moved...
                 head_ = (head_ + 1) % S;
-                if (count_-- == S) // notify only when was full...
+                if (count_-- == S) // notify push when no longer full...
                     input_.notify_one();
+                if (!count_) // notify clears when emptied
+                    this->notify(false);
                 return true;
             }
             wait(lock);
@@ -152,6 +158,7 @@ protected:
     }
 
     virtual void drop([[maybe_unused]] const T& obj) {}
+    virtual void notify([[maybe_unused]] bool pending) {}
 
     void clear_item(T& data, bool destroy = true) {
         if constexpr (std::is_pointer_v<T>) {
@@ -200,4 +207,25 @@ private:
         throw invalid("Pipeline ful");
     }
 };
+
+#ifndef _WIN32
+template <typename T, std::size_t S>
+class notify_pipeline : public pipeline<T, S> {
+public:
+    notify_pipeline() = default;
+
+    operator int() const noexcept { return notify_.handle(); } // select / poll
+    auto handle() const noexcept { return notify_.handle(); }
+
+    void notify(bool pending) final {
+        if (pending)
+            notify_.signal();
+        else
+            notify_.clear();
+    }
+
+private:
+    system::notify_t notify_;
+};
+#endif
 } // namespace busuto::system

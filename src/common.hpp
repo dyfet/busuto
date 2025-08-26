@@ -15,7 +15,7 @@
 #endif
 
 #ifndef BUSUTO_RUNTIME_SYSTEM
-#define BUSUTO_RUNTIME_SYSTEM 1
+#define BUSUTO_RUNTIME_SYSTEM
 #endif
 
 namespace busuto {

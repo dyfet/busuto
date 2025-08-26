@@ -7,20 +7,38 @@
 
 using namespace busuto;
 
-auto main(int /* argc */, char ** /* argv */) -> int {
-    assert(std::at_quick_exit([] {}) == 0);
+void test_sleep() {
     try {
         this_thread::sleep(10);
     } catch (...) {
-        return -1;
+        std::quick_exit(-1);
     }
+}
 
+void test_atomic() {
     std::atomic<int> total = 0;
     thread::parallel_func(3, [&total] {
         total.fetch_add(2);
     });
     assert(total == 6);
+}
 
+void test_notify() {
+#ifndef _WIN32
+    system::notify_t notifier;
+    assert(notifier.wait(0) == false);
+    notifier.signal();
+    assert(notifier.wait(0) == true);
+    notifier.clear();
+    assert(notifier.wait(0) == false);
+#endif
+}
+
+auto main(int /* argc */, char ** /* argv */) -> int {
+    assert(std::at_quick_exit([] {}) == 0);
+    test_sleep();
+    test_atomic();
+    test_notify();
     std::quick_exit(0);
     return 1;
 }
