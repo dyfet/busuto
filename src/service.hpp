@@ -614,23 +614,23 @@ public:
 #endif
 
     auto fatal(int ex = -1) {
-        return stream(1, LOG_CRIT, "fatal", *this, ex);
+        return stream(0, LOG_CRIT, "fatal", *this, ex);
     }
 
     auto error() {
-        return stream(1, LOG_ERR, "error", *this);
+        return stream(0, LOG_ERR, "error", *this);
     }
 
     auto warning() {
-        return stream(2, LOG_WARNING, "warn", *this);
+        return stream(1, LOG_WARNING, "warn", *this);
     }
 
     auto notice() {
-        return stream(3, LOG_NOTICE, "note", *this);
+        return stream(1, LOG_NOTICE, "note", *this);
     }
 
     auto info() {
-        return stream(4, LOG_INFO, "info", *this);
+        return stream(2, LOG_INFO, "info", *this);
     }
 
 private:
