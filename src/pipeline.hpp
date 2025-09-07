@@ -166,7 +166,7 @@ protected:
                 delete data;
             data = nullptr;
         } else {
-            data = T{};
+            data = std::move(T{});
         }
     }
 
