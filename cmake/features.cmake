@@ -6,12 +6,8 @@ include(CheckIncludeFileCXX)
 include(CheckFunctionExists)
 include(FindPkgConfig)
 
-if(MSVC)
-    message(FATAL_ERROR "Requires MingW32 with Posix support for Windows.")
-endif()
-
 if(WIN32)
-    set(BUSUTO_EXTRA_LIBS "-static -static-libgcc -static-libstdc++ -lws2_32")
+    message(FATAL_ERROR "Windows not supported because of winsock incompatibilities.")
 endif()
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)

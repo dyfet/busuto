@@ -5,22 +5,6 @@
 
 #include "common.hpp"
 
-#ifdef _WIN32
-#if _WIN32_WINNT < 0x0600 && !defined(_MSC_VER)
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600 // NOLINT
-#endif
-#define USE_CLOSESOCKET
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-#ifdef AF_UNIX
-#include <afunix.h>
-#endif
-#endif
-
 #include <chrono>
 #include <string>
 #include <memory>
@@ -33,11 +17,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#ifndef _WIN32
 #include <termios.h>
 #include <poll.h>
-#endif
 
 #if __has_include(<sys/eventfd.h>)
 #include <sys/eventfd.h>
@@ -63,7 +44,6 @@ using duration = std::chrono::steady_clock::duration;
 using file_ptr = std::unique_ptr<FILE, util::file_closer>;
 using pipe_ptr = std::unique_ptr<FILE, util::pipe_closer>;
 
-#ifndef _WIN32
 class notify_t final {
 public:
     notify_t(const notify_t& from) = delete;
@@ -140,13 +120,10 @@ private:
         pipe_[0] = pipe_[1] = -1;
     }
 };
-#endif
 
-#ifndef _WIN32
 inline auto page_size() noexcept -> off_t {
     return sysconf(_SC_PAGESIZE);
 }
-#endif
 
 inline void time_of_day(struct timeval *tp) noexcept {
     gettimeofday(tp, nullptr);
@@ -174,11 +151,7 @@ inline auto put_timeval(struct timeval *tv, const timepoint& deadline) {
     auto usecs = duration_cast<microseconds>(delta - secs);
 
     tv->tv_sec = static_cast<time_t>(secs.count());
-#ifdef _WIN32
-    tv->tv_usec = usecs.count();
-#else
     tv->tv_usec = static_cast<suseconds_t>(usecs.count());
-#endif
     return true;
 }
 
@@ -192,21 +165,13 @@ inline auto get_timeout(const timepoint& deadline) -> int {
 
 inline auto local_time(const std::time_t& time) noexcept {
     std::tm local{};
-#ifdef _WIN32
-    localtime_s(&local, &time);
-#else
     localtime_r(&time, &local);
-#endif
     return local;
 }
 
 inline auto gmt_time(const std::time_t& time) noexcept {
     std::tm local{};
-#ifdef _WIN32
-    gmtime_s(&local, &time);
-#else
     gmtime_r(&time, &local);
-#endif
     return local;
 }
 
@@ -286,9 +251,7 @@ public:
 private:
     int handle_{-1};
     close_t exit_{[](int fd) { ::close(fd); }};
-#ifndef _WIN32
     struct termios restore_{};
-#endif
     int access_{O_RDWR};
 
     enum {

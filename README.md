@@ -23,6 +23,13 @@ pool, and a system logger. It also provides a better place to put large blocks
 of un-templated functions. On posix we also introduce no runtime library code
 that forces injection of additional runtime library dependencies.
 
+Microsoft Windows is not supported as a platform with Busuto, not even with
+MingW32. This is largely due to the inability to mix Winsock and mingw posix
+file descriptors and use common logic for both. That requires fixing multiple
+i/o buffering layers. MingW32 js supported with libcpr because there was only
+one simple place in that codebase that needed fixing for that. There were also
+so many features that were disabled to support windows. It's just not worth it.
+
 ## Dependencies
 
 Busuto itself depends only on C++20 and a C++20 updated libc++.

@@ -11,8 +11,6 @@
 #include <ostream>
 #include <memory>
 #include <utility>
-
-#ifndef _WIN32
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -23,7 +21,6 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <poll.h>
-#endif
 
 #ifndef IPV6_ADD_MEMBERSHIP
 #define IPV6_ADD_MEMBERSHIP IP_ADD_MEMBERSHIP

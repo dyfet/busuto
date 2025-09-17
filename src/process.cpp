@@ -5,7 +5,6 @@
 
 using namespace busuto;
 
-#ifndef _WIN32
 auto process::detach(const process::args_t& args, std::string argv0, const process::args_t& env, void (*init)()) -> pid_t {
     if (args.empty()) return -1;
     auto argv = make_argv(args);
@@ -83,7 +82,6 @@ auto process::system(const process::args_t& args, std::string argv0, const proce
     }
     return process::wait(child);
 }
-#endif
 
 auto process::env(const std::string& id, std::size_t max) noexcept -> std::optional<std::string> {
     auto buf = std::make_unique<char[]>(max);

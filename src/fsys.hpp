@@ -76,9 +76,7 @@ public:
     constexpr dir_t() = default;
     constexpr dir_t(const dir_t& from) = delete;
     constexpr dir_t(dir_t&& from) noexcept : dir_(std::exchange(from.dir_, nullptr)) {}
-#ifndef _WIN32
     explicit dir_t(int handle) noexcept : dir_(fdopendir(handle)) {}
-#endif
     explicit dir_t(const std::string& path) noexcept : dir_(opendir(path.c_str())) {}
 
     ~dir_t() { release(); }
@@ -100,13 +98,11 @@ public:
         return *this;
     }
 
-#ifndef _WIN32
     auto operator=(int handle) noexcept -> dir_t& {
         release();
         dir_ = fdopendir(handle);
         return *this;
     }
-#endif
 
     constexpr auto is_open() const noexcept -> bool { return dir_ != nullptr; }
 

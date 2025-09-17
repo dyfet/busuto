@@ -95,13 +95,8 @@ auto socket::address::from_string(const std::string& s, uint16_t port) -> socket
 }
 
 void socket::release(int so) noexcept {
-#ifdef _WIN32
-    ::shutdown(so, SD_BOTH);
-    ::closesocket(so);
-#else
     ::shutdown(so, SHUT_RDWR);
     ::close(so);
-#endif
 }
 
 auto socket::join(int so, const struct sockaddr *member, unsigned ifindex) noexcept -> int {

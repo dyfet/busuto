@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 David Sugar <tychosoft@gmail.com>
 
-#ifndef _WIN32
 #include "networks.hpp"
 
 #include <net/if.h>
@@ -85,4 +84,3 @@ auto busuto::multicast_index(const networks_t& nets, const std::string& id, int 
     }
     return 0U;
 }
-#endif

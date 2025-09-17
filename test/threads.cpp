@@ -24,14 +24,12 @@ void test_atomic() {
 }
 
 void test_notify() {
-#ifndef _WIN32
     system::notify_t notifier;
     assert(notifier.wait(0) == false);
     notifier.signal();
     assert(notifier.wait(0) == true);
     notifier.clear();
     assert(notifier.wait(0) == false);
-#endif
 }
 
 auto main(int /* argc */, char ** /* argv */) -> int {

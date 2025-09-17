@@ -16,7 +16,6 @@ busuto::service::logger busuto::system_logger;
 busuto::service::timer busuto::system_timer;
 busuto::service::pool busuto::system_pool;
 
-#ifndef _WIN32
 auto busuto::is_service() noexcept -> bool {
     return getpid() == 1 || getppid() == 1 || getuid() == 0;
 }
@@ -51,4 +50,3 @@ auto busuto::background() noexcept -> bool {
 #endif
     return true;
 }
-#endif

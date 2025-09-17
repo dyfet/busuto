@@ -208,7 +208,6 @@ private:
     }
 };
 
-#ifndef _WIN32
 template <typename T, std::size_t S>
 class notify_pipeline : public pipeline<T, S> {
 public:
@@ -228,5 +227,4 @@ public:
 private:
     system::notify_t notify_;
 };
-#endif
 } // namespace busuto::system

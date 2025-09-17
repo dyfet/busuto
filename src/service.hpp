@@ -5,8 +5,9 @@
 
 #include "threads.hpp"
 #include "system.hpp"
-#include "print.hpp"
+#include "output.hpp"
 
+#include <algorithm>
 #include <mutex>
 #include <atomic>
 #include <map>

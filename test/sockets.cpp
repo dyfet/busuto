@@ -33,7 +33,6 @@ void test_socket_addr() {
 }
 
 void test_socket_bind() {
-#ifndef _WIN32
     const networks_t nets;
     assert(!nets.empty());
     auto b1 = bind_address(nets, "*");
@@ -47,7 +46,6 @@ void test_socket_bind() {
     assert(std::format("{}", path) == std::string("/hello"));
 #endif
     assert(is(b1));
-#endif
 }
 
 void test_socket_resolver() {

@@ -3,7 +3,6 @@
 
 #pragma once
 
-#ifndef _WIN32
 #include "sockets.hpp"
 #include "sync.hpp"
 
@@ -119,4 +118,3 @@ auto bind_address(const networks_t& nets, const std::string& id, uint16_t port =
 auto multicast_index(const networks_t& nets, const std::string& id, int family = AF_UNSPEC) -> unsigned;
 
 } // namespace busuto
-#endif
