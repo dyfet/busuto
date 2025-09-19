@@ -81,9 +81,14 @@ public:
         return data_;
     }
 
-    auto size() const noexcept {
+    auto size() const noexcept { // current size
         if (size_) return size_;
         return static_cast<std::size_t>(pptr() - data_);
+    }
+
+    auto used() const noexcept { // consumption count
+        if (size_) return static_cast<std::size_t>(gptr() - data_);
+        return size_t(0);
     }
 
     auto readable() const noexcept {
@@ -183,6 +188,57 @@ inline void newarray(T **ptr, std::size_t count = 1) noexcept {
 } // namespace busuto::safe
 
 namespace busuto {
+class input_buffer : public std::istream {
+public:
+    input_buffer() = delete;
+
+    input_buffer(const void *mem, std::size_t size) : std::istream(&buf_) {
+        buf_.input(static_cast<const char *>(mem), size);
+    }
+
+    auto is_open() const noexcept { return buf_.readable(); }
+    auto getbody(size_t n) { return buf_.zb_getbody(n); }
+    auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }
+
+    template <util::readable_binary Binary>
+    explicit input_buffer(const Binary& bin) : std::istream(&buf_) {
+        buf_.input(static_cast<const char *>(bin.data()), bin.size());
+    }
+
+    auto data() const noexcept { return buf_.data(); }
+    auto size() const noexcept { return buf_.size(); }
+    auto used() const noexcept { return buf_.used(); }
+    auto begin() const noexcept { return data(); }
+    auto end() const noexcept { return data() + size(); }
+
+private:
+    safe::streambuf buf_{};
+};
+
+class output_buffer : public std::ostream {
+public:
+    output_buffer() = delete;
+
+    output_buffer(void *mem, std::size_t size) : std::ostream(&buf_) {
+        buf_.output(static_cast<char *>(mem), size);
+    }
+
+    auto is_open() const noexcept { return buf_.writable(); }
+
+    template <util::writable_binary Binary>
+    explicit output_buffer(Binary& bin) : std::ostream(&buf_) {
+        buf_.output(static_cast<char *>(bin.data()), bin.size());
+    }
+
+    auto data() const noexcept { return buf_.data(); }
+    auto size() const noexcept { return buf_.size(); }
+    auto begin() const noexcept { return data(); }
+    auto end() const noexcept { return data() + size(); }
+
+private:
+    safe::streambuf buf_;
+};
+
 template <std::size_t S>
 class stringbuf {
 public:
@@ -320,12 +376,24 @@ public:
     constexpr auto empty() const noexcept { return !size_; }
     constexpr auto full() const noexcept { return size_ >= S; }
 
-    void clear() noexcept {
+    auto clear() noexcept -> stringbuf& {
         size_ = 0;
         data_[0] = 0;
+        return *this;
     }
 
-    auto trim(std::size_t size) -> std::stringbuf& {
+    auto chop(std::size_t prefix) noexcept -> stringbuf& {
+        if (prefix >= size_)
+            size_ = 0;
+        else if (prefix) {
+            memmove(data_, data_ + prefix, size_ - prefix);
+            size_ -= prefix;
+        }
+        data_[size_] = 0;
+        return *this;
+    }
+
+    auto trim(std::size_t size) -> stringbuf& {
         if (size > size_) throw range("trim too large");
         size_ -= size;
         data_[size_] = 0;
@@ -354,14 +422,40 @@ public:
         return data_ + size_; // null byte at end, valid ptr
     }
 
-    auto trim(const char *str) noexcept {
-        if (!str) return false;
+    auto trim(const char *str) noexcept -> stringbuf& {
+        if (!str) return *this;
+        ;
         auto tsize = safe::strsize(str, S);
         if (tsize > size_) return false;
         if (memcmp(data_ + size_ - tsize, str, tsize) != 0) return false;
         size_ -= tsize;
         data_[size_] = 0;
-        return true;
+        return *this;
+    }
+
+    auto output() {
+        return output_buffer(data_, S);
+    }
+
+    auto input() const {
+        return input_buffer(data_, size_);
+    }
+
+    auto update(const output_buffer& buffer) {
+        if (buffer.data() == data_) {
+            size_ = buffer.size();
+            data_[size_] = 0;
+            return true;
+        }
+        return false;
+    }
+
+    auto consume(const input_buffer& buffer) {
+        if (buffer.data() == data_) {
+            chop(buffer.used());
+            return true;
+        }
+        return false;
     }
 
     template <typename Func>
@@ -376,56 +470,6 @@ public:
 private:
     std::size_t size_{0};
     char data_[S + 1]{0};
-};
-
-class input_buffer : public std::istream {
-public:
-    input_buffer() = delete;
-
-    input_buffer(const void *mem, std::size_t size) : std::istream(&buf_) {
-        buf_.input(static_cast<const char *>(mem), size);
-    }
-
-    auto is_open() const noexcept { return buf_.readable(); }
-    auto getbody(size_t n) { return buf_.zb_getbody(n); }
-    auto getview(std::string_view delim = "\r\n") { return buf_.zb_getview(delim); }
-
-    template <util::readable_binary Binary>
-    explicit input_buffer(const Binary& bin) : std::istream(&buf_) {
-        buf_.input(static_cast<const char *>(bin.data()), bin.size());
-    }
-
-    auto data() const noexcept { return buf_.data(); }
-    auto size() const noexcept { return buf_.size(); }
-    auto begin() const noexcept { return data(); }
-    auto end() const noexcept { return data() + size(); }
-
-private:
-    safe::streambuf buf_{};
-};
-
-class output_buffer : public std::ostream {
-public:
-    output_buffer() = delete;
-
-    output_buffer(void *mem, std::size_t size) : std::ostream(&buf_) {
-        buf_.output(static_cast<char *>(mem), size);
-    }
-
-    auto is_open() const noexcept { return buf_.writable(); }
-
-    template <util::writable_binary Binary>
-    explicit output_buffer(Binary& bin) : std::ostream(&buf_) {
-        buf_.output(static_cast<char *>(bin.data()), bin.size());
-    }
-
-    auto data() const noexcept { return buf_.data(); }
-    auto size() const noexcept { return buf_.size(); }
-    auto begin() const noexcept { return data(); }
-    auto end() const noexcept { return data() + size(); }
-
-private:
-    safe::streambuf buf_;
 };
 
 constexpr auto eq(const char *p1, const char *p2) {
