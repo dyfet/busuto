@@ -7,7 +7,6 @@
 
 using namespace busuto;
 
-namespace {
 void test_sleep() {
     try {
         this_thread::sleep(10);
@@ -32,7 +31,6 @@ void test_notify() {
     notifier.clear();
     assert(notifier.wait(0) == false);
 }
-} // end  namespace
 
 auto main(int /* argc */, char ** /* argv */) -> int {
     assert(std::at_quick_exit([] {}) == 0);
