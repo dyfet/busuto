@@ -7,7 +7,8 @@
 
 using namespace busuto;
 
-static void test_sleep() {
+namespace {
+void test_sleep() {
     try {
         this_thread::sleep(10);
     } catch (...) {
@@ -15,7 +16,7 @@ static void test_sleep() {
     }
 }
 
-static void test_atomic() {
+void test_atomic() {
     std::atomic<int> total = 0;
     thread::parallel_func(3, [&total] {
         total.fetch_add(2);
@@ -23,7 +24,7 @@ static void test_atomic() {
     assert(total == 6);
 }
 
-static void test_notify() {
+void test_notify() {
     system::notify_t notifier;
     assert(notifier.wait(0) == false);
     notifier.signal();
@@ -31,6 +32,7 @@ static void test_notify() {
     notifier.clear();
     assert(notifier.wait(0) == false);
 }
+} // end  namespace
 
 auto main(int /* argc */, char ** /* argv */) -> int {
     assert(std::at_quick_exit([] {}) == 0);
