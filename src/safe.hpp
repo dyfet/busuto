@@ -240,6 +240,29 @@ private:
 };
 
 template <std::size_t S>
+class format_buffer final : public output_buffer {
+public:
+    format_buffer() : output_buffer(data_, S) {}
+    explicit operator bool() { return size() > 0; }
+    operator std::string() noexcept { return to_string(); }
+    auto operator!() { return size() == 0; }
+    auto operator()() -> std::string { return to_string(); }
+    auto operator*() -> char * { return c_str(); }
+
+    auto c_str() noexcept -> char * {
+        data_[size()] = 0;
+        return data_;
+    }
+
+    auto to_string() noexcept -> std::string {
+        return std::string(c_str());
+    }
+
+private:
+    char data_[S + 1]{0};
+};
+
+template <std::size_t S>
 class stringbuf {
 public:
     stringbuf() = default;
