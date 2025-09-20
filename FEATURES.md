@@ -24,6 +24,12 @@ class and supporting utility conversions for/to B64 text, hex, and utf8
 strings, that I have always wanted ever since using Qt QByteArray. This alone
 drove my decision to migrate to C++20 or later for future projects.
 
+## buffer.hpp
+
+Memory based stream buffering. This lets one parse memory buffers or address
+spaces with stream operators. The format\_buffer provides a heap=less and fast
+alternative to std::strstream.
+
 ## common.hpp
 
 Some very generic, universal, miscellaneous templates and functions. This also
@@ -99,7 +105,7 @@ memory. It is not meant to be used as a value store like std::array. Offset
 indexing allows the index to be a "meaningful" value rather than a 0 offset
 index. This lets code use an index of 0 to indicate an invalid index.
 
-Safe alsoprovides memory safe C char ptr operations. There is also a fixed
+Safe also provides memory safe C char ptr operations. There is also a fixed
 sized (templated) stringbuf class that lets you create a string type that is
 very friendly to integration with C strings. A new memory safe version of
 getline is provided to read lines into a stringbuf or a fixed char array.

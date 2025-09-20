@@ -7,6 +7,10 @@
         "test_*": true
     },
     "cSpell.words": [
-        "busuto"
+        "busuto",
+        "getline",
+        "stringbuf",
+        "strstream",
+        "Winsock"
     ]
 }

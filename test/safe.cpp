@@ -3,8 +3,8 @@
 
 #undef NDEBUG
 #include "safe.hpp"
+#include "buffer.hpp"
 #include <cassert>
-#include <iostream>
 
 using namespace busuto::safe;
 using namespace busuto;
