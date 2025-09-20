@@ -8,6 +8,36 @@
 
 using namespace busuto;
 
+auto system::is_dir(const std::string& path) noexcept -> bool {
+    struct stat ino{};
+    if (stat(path.c_str(), &ino))
+        return false;
+
+    if (S_ISDIR(ino.st_mode))
+        return true;
+
+    return false;
+}
+
+auto system::is_file(const std::string& path) noexcept -> bool {
+    struct stat ino{};
+    if (stat(path.c_str(), &ino))
+        return false;
+
+    if (S_ISREG(ino.st_mode))
+        return true;
+
+    return false;
+}
+
+auto system::hostname() noexcept -> std::string {
+    char buf[1024]{0};
+    auto result = gethostname(buf, sizeof(buf));
+    if (result != 0) return {};
+    buf[sizeof(buf) - 1] = 0;
+    return {buf};
+}
+
 void busuto::handle_t::access() noexcept {
     if (handle_ < 0) {
         access_ = O_RDWR;

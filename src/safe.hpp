@@ -8,10 +8,6 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdarg>
-#include <streambuf>
-#include <istream>
-#include <ostream>
-#include <array>
 
 namespace busuto::safe {
 template <typename T>

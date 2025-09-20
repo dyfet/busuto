@@ -8,9 +8,7 @@
 #include <chrono>
 #include <string>
 #include <memory>
-#include <cstdlib>
 #include <csignal>
-#include <cstdio>
 #include <ctime>
 
 #include <fcntl.h>
@@ -24,25 +22,9 @@
 #include <sys/eventfd.h>
 #endif
 
-namespace busuto::util {
-struct file_closer {
-    void operator()(FILE *f) const noexcept {
-        if (f) fclose(f);
-    }
-};
-
-struct pipe_closer {
-    void operator()(FILE *f) const noexcept {
-        if (f) pclose(f);
-    }
-};
-} // namespace busuto::util
-
 namespace busuto::system {
 using timepoint = std::chrono::steady_clock::time_point;
 using duration = std::chrono::steady_clock::duration;
-using file_ptr = std::unique_ptr<FILE, util::file_closer>;
-using pipe_ptr = std::unique_ptr<FILE, util::pipe_closer>;
 
 class notify_t final {
 public:
@@ -175,26 +157,13 @@ inline auto gmt_time(const std::time_t& time) noexcept {
     return local;
 }
 
-inline auto make_file(const std::string& path, const std::string& mode = "r") {
-    return system::file_ptr(fopen(path.c_str(), mode.c_str()));
-}
-
-inline auto make_pipe(const std::string& cmd, const std::string& mode = "r") {
-    return system::pipe_ptr(popen(cmd.c_str(), mode.c_str()));
-}
-
-inline auto hostname() noexcept -> std::string {
-    char buf[1024]{0};
-    auto result = gethostname(buf, sizeof(buf));
-
-    if (result != 0) return {};
-    buf[sizeof(buf) - 1] = 0;
-    return {buf};
-}
-
 inline auto prefix(const std::string& dir) noexcept {
     return chdir(dir.c_str()) == 0;
 }
+
+auto hostname() noexcept -> std::string;
+auto is_dir(const std::string& path) noexcept -> bool;
+auto is_file(const std::string& path) noexcept -> bool;
 } // namespace busuto::system
 
 namespace busuto {

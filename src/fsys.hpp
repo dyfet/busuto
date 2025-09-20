@@ -9,8 +9,6 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-#include <cstdio>
-
 #include <dirent.h>
 
 #if defined(__OpenBSD__)
@@ -33,42 +31,9 @@ std::invocable<F, std::string_view> &&
 std::convertible_to<std::invoke_result_t<F, std::string_view>, bool>;
 
 template <typename F>
-concept dirent_predicate =
+concept prefix_predicate =
 std::invocable<F, const dirent_t> &&
 std::convertible_to<std::invoke_result_t<F, const dirent_t>, bool>;
-
-class file_t final {
-public:
-    explicit file_t(FILE *file) : file_(system::file_ptr(file)) {}
-    explicit file_t(system::file_ptr&& file) : file_(std::move(file)) {}
-
-    operator FILE *() const noexcept { return file_.get(); }
-    explicit operator bool() const noexcept { return is_open(); }
-    auto operator!() const noexcept { return !is_open(); }
-    auto is_open() const noexcept -> bool { return file_.get() != nullptr; }
-
-private:
-    system::file_ptr file_{nullptr};
-};
-
-class pipe_t final {
-public:
-    explicit pipe_t(system::pipe_ptr&& pipe) : pipe_(std::move(pipe)) {}
-
-    operator FILE *() const noexcept { return pipe_.get(); }
-    explicit operator bool() const noexcept { return is_open(); }
-    auto operator!() const noexcept { return !is_open(); }
-    auto is_open() const noexcept -> bool { return pipe_.get() != nullptr; }
-
-    auto join() noexcept -> int {
-        auto fp = pipe_.release();
-        if (!fp) return -1;
-        return pclose(fp);
-    }
-
-private:
-    system::pipe_ptr pipe_{nullptr};
-};
 
 // lightweight alternative to filesystem dir
 class dir_t final {
@@ -116,14 +81,6 @@ private:
             ::closedir(std::exchange(dir_, nullptr));
     }
 };
-
-inline auto make_file(const std::string& path, const std::string& mode = "rb") {
-    return file_t(system::file_ptr(fopen(path.c_str(), mode.c_str())));
-}
-
-inline auto make_pipe(const std::string& cmd, const std::string& mode = "r") {
-    return pipe_t(system::make_pipe(cmd, mode));
-}
 } // namespace busuto::fsys
 
 namespace busuto {
@@ -150,15 +107,6 @@ inline auto scan_file(const fsys::path& path, Func func) {
     return count;
 }
 
-template <fsys::file_predicate Func>
-inline auto scan_command(const std::string& cmd, Func func, std::size_t size = 0) {
-    auto pipe = busuto::system::make_pipe(cmd, "r");
-    if (!pipe.get()) return std::size_t(0);
-
-    auto count = scan_file(pipe.get(), func, size);
-    return count;
-}
-
 template <fsys::directory_predicate Func>
 inline auto scan_directory(const fsys::path& path, Func func) {
     std::error_code ec;
@@ -175,8 +123,8 @@ inline auto scan_recursive(const fsys::path& path, Func func) {
     return std::count_if(begin(dir), end(dir), func);
 }
 
-template <fsys::dirent_predicate Func>
-inline auto scan_directory(const std::string& path, Func func) {
+template <fsys::prefix_predicate Func>
+inline auto scan_prefix(const std::string& path, Func func) {
     std::size_t count = 0;
     fsys::dir_t dir(path);
     fsys::dirent_t entry{nullptr};

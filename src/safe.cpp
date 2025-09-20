@@ -5,6 +5,8 @@
 
 #include <cctype>
 
+#include <istream>
+
 using namespace busuto;
 
 auto safe::strcopy(char *cp, std::size_t max, const char *dp) noexcept -> std::size_t {
