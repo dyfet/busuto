@@ -81,11 +81,6 @@ Performs print formatting, including output to existing streams such as output
 logging. Includes helper functions for other busuto types. Because this header
 has to include other types, it may include a large number of headers.
 
-## process.hpp
-
-Manage and spawn child processes from C++. Manage file sessions with pipes,
-essentially like popen offers.
-
 ## resolver.hpp
 
 This provides an asynchronous network resolver that uses futures with support
@@ -94,21 +89,10 @@ examining network resolver addresses.
 
 ## safe.hpp
 
-Safe memory operations and confined memory input/output stream buffers that can
-be used to apply C++ stream operations directly on a block of memory. This
-allows memory blocks, such as from UDP messages, to be manipulated in a very
-manner similar to how streams.hpp may be used to parse and produce TCP
-session content with full support for C++ stream operators and formatting.
-
-Safe slots is meant to ba a pure slot object for (lockable) data structures in
-memory. It is not meant to be used as a value store like std::array. Offset
-indexing allows the index to be a "meaningful" value rather than a 0 offset
-index. This lets code use an index of 0 to indicate an invalid index.
-
-Safe also provides memory safe C char ptr operations. There is also a fixed
-sized (templated) stringbuf class that lets you create a string type that is
-very friendly to integration with C strings. A new memory safe version of
-getline is provided to read lines into a stringbuf or a fixed char array.
+Safe provides memory safe C char ptr operations. There is also a fixed sized
+(templated) stringbuf class that lets you create a string type that is very
+friendly to integration with C strings. A new memory safe version of getline is
+provided to read lines into a stringbuf or a fixed char array.
 
 ## scan.hpp
 
@@ -151,10 +135,11 @@ well to detached C++ threads.
 ## system.hpp
 
 Just some convenient C++ wrappers around system handles (file descriptors). It
-may add some process level functionality eventually, too. It is also meant to
-include the hpx init functions and be a basic application main include. The
-low level handle system is socket and tty aware, making system streams in
-streams.hpp also aware.
+may add some process level functionality eventually, too. The low level handle
+system is socket and tty aware, making system streams in streams.hpp also
+aware. Syste,hpp also includes injectable functions at forking to simplify
+process creation. For example, stdio redirection and process detach can be
+injected in a closure.
 
 ## threads.hpp
 
