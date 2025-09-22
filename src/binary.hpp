@@ -107,6 +107,42 @@ inline auto offset_at(T where, const std::array<std::remove_reference_t<T>, N>& 
 namespace busuto {
 using byte_span = std::span<const std::byte>;
 
+constexpr auto to_byte(std::byte b) noexcept {
+    return static_cast<uint8_t>(b);
+}
+
+constexpr auto to_byte(uint8_t u) noexcept {
+    return static_cast<std::byte>(u);
+}
+
+constexpr auto to_byte(char u) noexcept {
+    return static_cast<std::byte>(u);
+}
+
+inline auto to_byte(const uint8_t *data) {
+    return reinterpret_cast<const std::byte *>(data);
+}
+
+inline auto to_byte(uint8_t *data) {
+    return reinterpret_cast<std::byte *>(data);
+}
+
+inline auto to_byte(const char *data) {
+    return reinterpret_cast<const uint8_t *>(data);
+}
+
+inline auto to_byte(char *data) {
+    return reinterpret_cast<uint8_t *>(data);
+}
+
+inline auto to_byte(const std::byte *data) {
+    return reinterpret_cast<const uint8_t *>(data);
+}
+
+inline auto to_byte(std::byte *data) {
+    return reinterpret_cast<uint8_t *>(data);
+}
+
 class byte_array {
 public:
     using reference = std::byte&;
