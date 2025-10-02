@@ -52,7 +52,7 @@ constexpr auto little_endian() {
     return std::endian::native == std::endian::little;
 }
 
-inline auto swap16(uint16_t value) -> uint16_t {
+static inline auto swap16(uint16_t value) -> uint16_t {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap16(value);
 #else
@@ -60,7 +60,7 @@ inline auto swap16(uint16_t value) -> uint16_t {
 #endif
 }
 
-inline auto swap32(uint32_t value) -> uint32_t {
+static inline auto swap32(uint32_t value) -> uint32_t {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap32(value);
 #else
@@ -71,7 +71,7 @@ inline auto swap32(uint32_t value) -> uint32_t {
 #endif
 }
 
-inline auto swap64(uint64_t value) -> uint64_t {
+static inline auto swap64(uint64_t value) -> uint64_t {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap64(value);
 #else
@@ -119,27 +119,27 @@ constexpr auto to_byte(char u) noexcept {
     return static_cast<std::byte>(u);
 }
 
-inline auto to_byte(const uint8_t *data) {
+static inline auto to_byte(const uint8_t *data) {
     return reinterpret_cast<const std::byte *>(data);
 }
 
-inline auto to_byte(uint8_t *data) {
+static inline auto to_byte(uint8_t *data) {
     return reinterpret_cast<std::byte *>(data);
 }
 
-inline auto to_byte(const char *data) {
+static inline auto to_byte(const char *data) {
     return reinterpret_cast<const uint8_t *>(data);
 }
 
-inline auto to_byte(char *data) {
+static inline auto to_byte(char *data) {
     return reinterpret_cast<uint8_t *>(data);
 }
 
-inline auto to_byte(const std::byte *data) {
+static inline auto to_byte(const std::byte *data) {
     return reinterpret_cast<const uint8_t *>(data);
 }
 
-inline auto to_byte(std::byte *data) {
+static inline auto to_byte(std::byte *data) {
     return reinterpret_cast<uint8_t *>(data);
 }
 
@@ -172,12 +172,12 @@ public:
     constexpr byte_array(byte_array&&) noexcept = default;
     constexpr auto operator=(byte_array&&) noexcept -> byte_array& = default;
 
-    operator std::string() const {
+    constexpr operator std::string() const {
         return to_hex();
     }
 
     explicit operator bool() const noexcept { return !empty(); }
-    auto operator!() const noexcept { return empty(); }
+    constexpr auto operator!() const noexcept { return empty(); }
 
     constexpr auto operator==(const byte_array& other) const noexcept -> bool {
         return buffer_ == other.buffer_;
@@ -185,6 +185,39 @@ public:
 
     constexpr auto operator!=(const byte_array& other) const noexcept -> bool {
         return !(*this == other);
+    }
+
+    auto operator^=(const byte_array& other) noexcept -> byte_array& {
+        if (empty() || other.empty()) return *this;
+        std::size_t count = std::min(size(), other.size());
+        auto tp = buffer_.data();
+        auto fp = other.buffer_.data();
+        while (count--) {
+            *(tp++) ^= *(fp++);
+        }
+        return *this;
+    }
+
+    auto operator&=(const byte_array& other) noexcept -> byte_array& {
+        if (empty() || other.empty()) return *this;
+        std::size_t count = std::min(size(), other.size());
+        auto tp = buffer_.data();
+        auto fp = other.buffer_.data();
+        while (count--) {
+            *(tp++) &= *(fp++);
+        }
+        return *this;
+    }
+
+    auto operator|=(const byte_array& other) noexcept -> byte_array& {
+        if (empty() || other.empty()) return *this;
+        std::size_t count = std::min(size(), other.size());
+        auto tp = buffer_.data();
+        auto fp = other.buffer_.data();
+        while (count--) {
+            *(tp++) |= *(fp++);
+        }
+        return *this;
     }
 
     auto operator+=(const byte_array& other) noexcept -> byte_array& {
@@ -318,7 +351,7 @@ public:
         return out;
     }
 
-    auto to_string() const -> std::string {
+    constexpr auto to_string() const -> std::string {
         return to_hex();
     }
 
@@ -327,7 +360,7 @@ public:
         return std::u8string{p, buffer_.size()};
     }
 
-    auto to_hex() const -> std::string {
+    constexpr auto to_hex() const -> std::string {
         constexpr char hex[] = "0123456789ABCDEF";
         std::string out;
         out.reserve(size() * 2);
@@ -360,7 +393,7 @@ inline auto to_byte_span(const Binary& obj) {
     return byte_span(reinterpret_cast<const std::byte *>(obj.data()), obj.size());
 }
 
-inline auto to_string(const byte_array& ba) {
+constexpr auto to_string(const byte_array& ba) {
     return ba.to_hex();
 }
 
@@ -374,11 +407,11 @@ inline auto to_hex(const Binary& bin) {
     return util::encode_hex(to_byte_span(bin));
 }
 
-inline auto from_hex(const std::string& in) {
+static inline auto from_hex(const std::string& in) {
     return byte_array(util::decode_hex(in));
 }
 
-inline auto from_b64(const std::string& in) {
+static inline auto from_b64(const std::string& in) {
     return byte_array(util::decode_b64(in));
 }
 
